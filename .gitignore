@@ -9,3 +9,9 @@ node_modules/
 dist/
 build/
 .cache/
+coverage/
+
+# Environment Local Secrets
+.env
+.env.local
+.env.*.local
