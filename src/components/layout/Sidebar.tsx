@@ -1,21 +1,12 @@
 import React from 'react';
-import { DocumentModel } from '../../types';
-import { FileText, FolderOpen, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { FileText, FolderOpen, PanelLeftClose, PanelLeft, Plus } from 'lucide-react';
 import { IconButton } from '../common/IconButton';
 import { useShellState } from '../../state/ShellContext';
+import { useWorkspace } from '../../state/WorkspaceContext';
 
-export interface SidebarProps {
-  documents: Record<string, DocumentModel>;
-  activeDocId: string | null;
-  onSelectDoc: (id: string) => void;
-}
-
-export const Sidebar: React.FC<SidebarProps> = ({
-  documents,
-  activeDocId,
-  onSelectDoc,
-}) => {
+export const Sidebar: React.FC = () => {
   const { state, toggleSidebar } = useShellState();
+  const { registry, activateDoc, createDoc } = useWorkspace();
 
   if (!state.sidebarOpen) {
     return (
@@ -67,20 +58,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <FolderOpen size={16} />
           <span>Explorer</span>
         </div>
-        <IconButton
-          onClick={toggleSidebar}
-          aria-label="Collapse Sidebar"
-          icon={<PanelLeftClose size={16} />}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <IconButton
+            onClick={() => createDoc(`Untitled-${registry.openDocIds.length + 1}.txt`)}
+            aria-label="New Document"
+            icon={<Plus size={14} />}
+          />
+          <IconButton
+            onClick={toggleSidebar}
+            aria-label="Collapse Sidebar"
+            icon={<PanelLeftClose size={16} />}
+          />
+        </div>
       </div>
 
       <div style={{ padding: '8px', flex: 1, overflowY: 'auto' }}>
-        {Object.values(documents).map((doc) => {
-          const isActive = activeDocId === doc.id;
+        {registry.openDocIds.map((id) => {
+          const doc = registry.documents[id];
+          if (!doc) return null;
+          const isActive = registry.activeDocId === id;
+
           return (
             <div
               key={doc.id}
-              onClick={() => onSelectDoc(doc.id)}
+              onClick={() => activateDoc(doc.id)}
               style={{
                 display: 'flex',
                 alignItems: 'center',

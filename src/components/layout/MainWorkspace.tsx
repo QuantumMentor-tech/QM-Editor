@@ -1,16 +1,11 @@
 import React from 'react';
-import { DocumentModel } from '../../types';
-import { FileText } from 'lucide-react';
+import { useWorkspace } from '../../state/WorkspaceContext';
+import { FileText, X, Plus } from 'lucide-react';
+import { IconButton } from '../common/IconButton';
 
-export interface MainWorkspaceProps {
-  activeDoc: DocumentModel | null;
-  onContentChange: (newContent: string) => void;
-}
+export const MainWorkspace: React.FC = () => {
+  const { registry, activeDoc, activateDoc, closeDoc, updateText, createDoc } = useWorkspace();
 
-export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
-  activeDoc,
-  onContentChange,
-}) => {
   return (
     <main
       style={{
@@ -21,7 +16,7 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
         overflow: 'hidden',
       }}
     >
-      {/* Active Tab Bar */}
+      {/* Tab Bar Strip */}
       <div
         style={{
           height: 'var(--header-height)',
@@ -30,37 +25,84 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
           display: 'flex',
           alignItems: 'center',
           paddingLeft: '4px',
+          overflowX: 'auto',
+          whiteSpace: 'nowrap',
         }}
       >
-        {activeDoc && (
-          <div
-            style={{
-              height: '100%',
-              padding: '0 16px',
-              backgroundColor: 'var(--bg-editor)',
-              borderTop: '2px solid var(--accent-primary)',
-              borderRight: '1px solid var(--border-color)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '0.85rem',
-              fontWeight: 500,
-              color: 'var(--text-primary)',
-            }}
-          >
-            <FileText size={14} color="var(--text-accent)" />
-            <span>{activeDoc.title}</span>
-            {activeDoc.isDirty && <span style={{ color: 'var(--text-accent)' }}>●</span>}
-          </div>
-        )}
+        {registry.openDocIds.map((id) => {
+          const doc = registry.documents[id];
+          if (!doc) return null;
+          const isActive = registry.activeDocId === id;
+
+          return (
+            <div
+              key={doc.id}
+              onClick={() => activateDoc(doc.id)}
+              style={{
+                height: '100%',
+                padding: '0 12px',
+                backgroundColor: isActive ? 'var(--bg-editor)' : 'transparent',
+                borderTop: isActive ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                borderRight: '1px solid var(--border-color)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '0.85rem',
+                fontWeight: isActive ? 600 : 400,
+                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'background-color var(--transition-fast)',
+              }}
+            >
+              <FileText size={14} color={isActive ? 'var(--text-accent)' : 'var(--text-muted)'} />
+              <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {doc.title}
+              </span>
+              {doc.isDirty && (
+                <span style={{ color: 'var(--text-accent)', fontSize: '0.75rem' }}>●</span>
+              )}
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeDoc(doc.id);
+                }}
+                aria-label={`Close ${doc.title}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '2px',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  marginLeft: '4px',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                <X size={12} />
+              </span>
+            </div>
+          );
+        })}
+
+        {/* Quick New File Tab Action */}
+        <div style={{ padding: '0 8px' }}>
+          <IconButton
+            onClick={() => createDoc(`Untitled-${registry.openDocIds.length + 1}.txt`)}
+            aria-label="New Document"
+            icon={<Plus size={14} />}
+          />
+        </div>
       </div>
 
-      {/* Editor Content Surface */}
+      {/* Editor Surface Area */}
       <div style={{ flex: 1, position: 'relative' }}>
         {activeDoc ? (
           <textarea
             value={activeDoc.content}
-            onChange={(e) => onContentChange(e.target.value)}
+            onChange={(e) => updateText(activeDoc.id, e.target.value)}
             placeholder="Write content here..."
             style={{
               width: '100%',
@@ -85,11 +127,29 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
               color: 'var(--text-muted)',
-              gap: '12px',
+              gap: '14px',
             }}
           >
-            <FileText size={48} strokeWidth={1} />
-            <p style={{ fontSize: '0.95rem' }}>No document open in workspace</p>
+            <FileText size={54} strokeWidth={1} />
+            <h3 style={{ fontWeight: 500, fontSize: '1.1rem', color: 'var(--text-secondary)' }}>
+              No Open Documents in Workspace
+            </h3>
+            <p style={{ fontSize: '0.85rem' }}>Create a new document to start editing.</p>
+            <button
+              onClick={() => createDoc('Untitled-1.txt')}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: 'var(--accent-primary)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+              }}
+            >
+              + Create New Document
+            </button>
           </div>
         )}
       </div>

@@ -1,17 +1,13 @@
 import React from 'react';
 import { StatusIndicator, StatusType } from '../common/StatusIndicator';
+import { useWorkspace } from '../../state/WorkspaceContext';
 
-export interface StatusBarProps {
-  status: StatusType;
-  encoding?: string;
-  language?: string;
-}
+export const StatusBar: React.FC = () => {
+  const { activeDoc } = useWorkspace();
 
-export const StatusBar: React.FC<StatusBarProps> = ({
-  status,
-  encoding = 'UTF-8',
-  language = 'Markdown',
-}) => {
+  const status: StatusType = activeDoc ? (activeDoc.isDirty ? 'dirty' : 'saved') : 'saved';
+  const language = activeDoc?.language || 'Plaintext';
+
   return (
     <footer
       style={{
@@ -27,11 +23,11 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <span>QM Editor Shell Foundation</span>
+        <span>QM Editor Workspace Model</span>
         <span>•</span>
-        <span>{encoding}</span>
+        <span>UTF-8</span>
         <span>•</span>
-        <span>{language}</span>
+        <span style={{ textTransform: 'capitalize' }}>{language}</span>
       </div>
 
       <div>

@@ -1,6 +1,6 @@
 # QM EDITOR — SHELL STATE & NAVIGATION ARCHITECTURE
 
-**Version:** 1.0.0  
+**Version:** 1.1.0  
 **Status:** Approved Shell State Architecture  
 **Last Updated:** October 10, 2026  
 
@@ -30,12 +30,12 @@ QM Editor shell state is managed through a centralized, single-owner React Conte
 
 ## 2. STATE DOMAIN SEPARATION
 
-To preserve architectural integrity, **Shell State** is strictly separated from **Editor/Document State**:
+To preserve architectural integrity, **Shell State** is strictly separated from **Document Workspace State**:
 
 | Domain | Responsible Module | Owned State Values |
 |---|---|---|
 | **Shell State** | `ShellContext` / `ShellProvider` | Theme mode, sidebar visibility, sidebar width, secondary panel state, active panel view, active shell view, modal overlay state |
-| **Document State** | `WorkspaceContext` (Future Step) | Open document models, tab ordering, active document ID, dirty tracking, undo/redo stacks |
+| **Document Workspace State** | `WorkspaceContext` / `DocumentRegistry` | Open document collection, tab ordering array (`openDocIds`), active document ID, dirty tracking, unsaved close target |
 | **Preferences** | `PreferencesService` | Validated local storage persistence for user shell options (theme, sidebar open, panel defaults) |
 
 ---
