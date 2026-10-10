@@ -1,23 +1,18 @@
 import React from 'react';
-import { ThemeMode } from '../../types';
+import { useShellState } from '../../state/ShellContext';
 import { Button } from '../common/Button';
 import { IconButton } from '../common/IconButton';
 import { Badge } from '../common/Badge';
-import { Save, Sun, Moon } from 'lucide-react';
+import { Save, Sun, Moon, Terminal } from 'lucide-react';
 
 export interface HeaderProps {
-  theme: ThemeMode;
-  onToggleTheme: () => void;
   isDirty?: boolean;
   onSave?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({
-  theme,
-  onToggleTheme,
-  isDirty = false,
-  onSave,
-}) => {
+export const Header: React.FC<HeaderProps> = ({ isDirty = false, onSave }) => {
+  const { state, toggleTheme, togglePanel } = useShellState();
+
   return (
     <header
       style={{
@@ -44,6 +39,13 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <IconButton
+          onClick={togglePanel}
+          active={state.panelOpen}
+          aria-label="Toggle Console Panel"
+          icon={<Terminal size={18} />}
+        />
+
         <Button
           onClick={onSave}
           disabled={!isDirty}
@@ -54,9 +56,9 @@ export const Header: React.FC<HeaderProps> = ({
         </Button>
 
         <IconButton
-          onClick={onToggleTheme}
+          onClick={toggleTheme}
           aria-label="Toggle Theme"
-          icon={theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          icon={state.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         />
       </div>
     </header>

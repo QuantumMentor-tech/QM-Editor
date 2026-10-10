@@ -3,6 +3,8 @@
  */
 
 export type ThemeMode = 'dark' | 'light';
+export type ShellView = 'editor' | 'settings' | 'extensions';
+export type PanelView = 'output' | 'problems' | 'terminal';
 
 export interface DocumentModel {
   id: string;
@@ -21,10 +23,21 @@ export interface TabModel {
   isDirty: boolean;
 }
 
-export interface WorkspaceState {
-  documents: Record<string, DocumentModel>;
-  openTabIds: string[];
-  activeTabId: string | null;
+export interface UserPreferences {
   theme: ThemeMode;
   sidebarOpen: boolean;
+  sidebarWidth: number;
+  activePanelView: PanelView;
+}
+
+export interface ShellState {
+  theme: ThemeMode;
+  sidebarOpen: boolean;
+  sidebarWidth: number;
+  panelOpen: boolean;
+  activePanelView: PanelView;
+  activeView: ShellView;
+  dialogOpen: boolean;
+  dialogTitle: string;
+  dialogContent: React.ReactNode | null;
 }

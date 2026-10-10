@@ -2,23 +2,22 @@ import React from 'react';
 import { DocumentModel } from '../../types';
 import { FileText, FolderOpen, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { IconButton } from '../common/IconButton';
+import { useShellState } from '../../state/ShellContext';
 
 export interface SidebarProps {
-  isOpen: boolean;
-  onToggleOpen: () => void;
   documents: Record<string, DocumentModel>;
   activeDocId: string | null;
   onSelectDoc: (id: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  isOpen,
-  onToggleOpen,
   documents,
   activeDocId,
   onSelectDoc,
 }) => {
-  if (!isOpen) {
+  const { state, toggleSidebar } = useShellState();
+
+  if (!state.sidebarOpen) {
     return (
       <div
         style={{
@@ -32,7 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }}
       >
         <IconButton
-          onClick={onToggleOpen}
+          onClick={toggleSidebar}
           aria-label="Expand Sidebar"
           icon={<PanelLeft size={18} />}
         />
@@ -43,7 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside
       style={{
-        width: 'var(--sidebar-width)',
+        width: `${state.sidebarWidth}px`,
         backgroundColor: 'var(--bg-sidebar)',
         borderRight: '1px solid var(--border-color)',
         display: 'flex',
@@ -69,7 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span>Explorer</span>
         </div>
         <IconButton
-          onClick={onToggleOpen}
+          onClick={toggleSidebar}
           aria-label="Collapse Sidebar"
           icon={<PanelLeftClose size={16} />}
         />
