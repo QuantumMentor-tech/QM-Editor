@@ -1,13 +1,12 @@
 import React from 'react';
-import { FileText, FolderOpen, PanelLeftClose, PanelLeft, Plus } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, Plus } from 'lucide-react';
 import { IconButton } from '../common/IconButton';
 import { useShellState } from '../../state/ShellContext';
-import { useWorkspace } from '../../state/WorkspaceContext';
 import { useCommand } from '../../state/CommandContext';
+import { FileExplorer } from '../explorer/FileExplorer';
 
 export const Sidebar: React.FC = () => {
   const { state } = useShellState();
-  const { registry, activateDoc } = useWorkspace();
   const { executeCommand } = useCommand();
 
   if (!state.sidebarOpen) {
@@ -40,30 +39,27 @@ export const Sidebar: React.FC = () => {
         borderRight: '1px solid var(--border-color)',
         display: 'flex',
         flexDirection: 'column',
+        height: '100%',
+        overflow: 'hidden',
       }}
     >
       <div
         style={{
-          padding: '10px 14px',
-          fontWeight: 600,
-          fontSize: '0.8rem',
-          textTransform: 'uppercase',
-          color: 'var(--text-muted)',
-          letterSpacing: '0.8px',
-          borderBottom: '1px solid var(--border-color)',
+          padding: '8px 12px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          borderBottom: '1px solid var(--border-color)',
+          backgroundColor: 'var(--bg-header)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <FolderOpen size={16} />
-          <span>Explorer</span>
-        </div>
+        <span style={{ fontWeight: 600, fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.8px' }}>
+          PRIMARY SIDEBAR
+        </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <IconButton
-            onClick={() => executeCommand('document.new')}
-            aria-label="New Document (Ctrl+N)"
+            onClick={() => executeCommand('file.new')}
+            aria-label="New File (Ctrl+N)"
             icon={<Plus size={14} />}
           />
           <IconButton
@@ -74,49 +70,8 @@ export const Sidebar: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ padding: '8px', flex: 1, overflowY: 'auto' }}>
-        {registry.openDocIds.map((id) => {
-          const doc = registry.documents[id];
-          if (!doc) return null;
-          const isActive = registry.activeDocId === id;
-
-          return (
-            <div
-              key={doc.id}
-              onClick={() => activateDoc(doc.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 12px',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: isActive ? 'var(--bg-hover)' : 'transparent',
-                color: isActive ? 'var(--text-accent)' : 'var(--text-primary)',
-                cursor: 'pointer',
-                fontSize: '0.9rem',
-                marginBottom: '2px',
-                transition: 'background-color var(--transition-fast)',
-              }}
-            >
-              <FileText size={16} />
-              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {doc.title}
-              </span>
-              {doc.isDirty && (
-                <span
-                  style={{
-                    height: '6px',
-                    width: '6px',
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--text-accent)',
-                    marginLeft: 'auto',
-                    flexShrink: 0,
-                  }}
-                />
-              )}
-            </div>
-          );
-        })}
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        <FileExplorer />
       </div>
     </aside>
   );

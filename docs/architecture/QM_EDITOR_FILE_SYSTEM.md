@@ -132,8 +132,23 @@ User → Save Command (Ctrl+S)
 
 ---
 
-## 7. TESTING STRATEGY
+## 7. WORKSPACE TREE & FILE EXPLORER INTEGRATION
+
+The File Explorer UI connects to the File System Service via the Workspace Resource Service (`WorkspaceService`):
+
+```text
+FILE EXPLORER UI  ──►  WORKSPACE SERVICE  ──►  FILE SERVICE  ──►  STORAGE ACCESS API
+```
+
+- **Directory Enumeration:** Uses lazy folder enumeration (`WorkspaceService.readDirectory`) to fetch subdirectories on demand upon folder expansion.
+- **Node-to-Resource Mapping:** Tree nodes encapsulate `TreeNodeModel` metadata (`id`, `name`, `kind`, `uri`, `handle`). Selecting a file node dispatches the `file.open` command via `FileService.readFile()`.
+- **Resource Identity Normalization:** Resource URIs (`browser-fs://...` or `file://...`) strictly match `FileResource.uri` in the open document registry to allow precise active file highlighting and reveal capability.
+
+---
+
+## 8. TESTING STRATEGY
 
 1. **Unit Tests (`FileService.test.ts`):** Path normalization, mock file reads/writes, error code mapping, directory/binary file guard behavior.
-2. **Revision Race Tests (`document.test.ts`):** Verification that edits performed during in-flight save keep `isDirty: true` after write completes.
-3. **Workspace Integration Tests (`WorkspaceContext.test.tsx`):** Verification of New, Open, Save, Save As, Close workflows, duplicate open prevention, and dirty close protection.
+2. **Workspace & Tree Tests (`WorkspaceService.test.ts`):** Directory enumeration, folders-first sorting, lazy folder loading, and async race token protection.
+3. **Revision Race Tests (`document.test.ts`):** Verification that edits performed during in-flight save keep `isDirty: true` after write completes.
+4. **Workspace Integration Tests (`WorkspaceContext.test.tsx`):** Verification of New, Open, Save, Save As, Close workflows, duplicate open prevention, and dirty close protection.

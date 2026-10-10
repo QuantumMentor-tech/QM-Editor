@@ -18,6 +18,11 @@ export interface CommandContext {
     togglePanel: () => void;
     toggleTheme: () => void;
   };
+  explorerActions?: {
+    openWorkspace: () => void | Promise<void>;
+    refreshWorkspace: () => void | Promise<void>;
+    revealActiveFile: () => void;
+  };
 }
 
 export interface Command {

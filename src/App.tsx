@@ -9,6 +9,8 @@ import { SecondaryPanel } from './components/layout/SecondaryPanel';
 import { StatusBar } from './components/layout/StatusBar';
 import { OverlayLayer } from './components/layout/OverlayLayer';
 
+import { ExplorerProvider } from './state/ExplorerContext';
+
 const AppContent: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw' }}>
@@ -40,9 +42,11 @@ export const App: React.FC = () => {
   return (
     <ShellProvider>
       <WorkspaceProvider>
-        <CommandProvider>
-          <AppContent />
-        </CommandProvider>
+        <ExplorerProvider>
+          <CommandProvider>
+            <AppContent />
+          </CommandProvider>
+        </ExplorerProvider>
       </WorkspaceProvider>
     </ShellProvider>
   );

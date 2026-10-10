@@ -1,0 +1,109 @@
+# QM EDITOR — FILE EXPLORER & WORKSPACE TREE SPECIFICATION
+
+**Version:** 1.0.0  
+**Status:** Approved Workspace Navigation Architecture  
+**Last Updated:** October 10, 2026  
+
+---
+
+## 1. ARCHITECTURAL OBJECTIVE & LAYER BOUNDARY
+
+QM Editor introduces a decoupled, safe **File Explorer / Workspace Tree** for directory navigation. The Explorer acts strictly as a **resource navigation layer** and does NOT execute raw filesystem I/O directly or bypass the approved `FileService`.
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│                         FILE EXPLORER UI                         │
+│       (Tree View Component, Expand/Collapse, Keyboard Nav)       │
+└────────────────────────────────┬─────────────────────────────────┘
+                                 │ Interacts with Explorer State
+                                 ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                       EXPLORER CONTEXT & STATE                   │
+│   (Manages expanded folder set, selected node ID, active node)   │
+└────────────────────────────────┬─────────────────────────────────┘
+                                 │ Requests Directory Enumeration
+                                 ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    WORKSPACE RESOURCE SERVICE                    │
+│   (Handles lazy directory loading, async race token protection)  │
+└────────────────────────────────┬─────────────────────────────────┘
+                                 │ Invokes Physical I/O
+                                 ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    FILE SERVICE ABSTRACTION                      │
+│ (Handles path normalization, File System Access API, safe read)  │
+└────────────────────────────────┬─────────────────────────────────┘
+                                 │ Platform API
+                                 ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                  OPERATING SYSTEM / FILESYSTEM                   │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. WORKSPACE & TREE NODE DOMAIN MODEL
+
+```typescript
+export interface TreeNodeModel {
+  id: string;                   // Stable URI or handle identifier
+  name: string;                 // Folder or file display name
+  kind: 'file' | 'directory';   // Resource classification
+  uri: string;                  // Normalized resource URI/path
+  parentId: string | null;      // Parent node ID
+  handle?: FileSystemHandle;    // Optional File System Access handle
+  hasChildren?: boolean;        // Whether node can be expanded
+  children?: TreeNodeModel[];   // Sub-nodes (populated lazily)
+  isLoaded?: boolean;           // Loaded flag for lazy directory fetch
+  isLoading?: boolean;          // Async fetching indicator
+  error?: string | null;        // Localized error message
+}
+
+export interface WorkspaceRootModel {
+  id: string;                   // Workspace identifier
+  name: string;                 // Display name (e.g. project folder name)
+  uri: string;                  // Normalized root URI
+  handle?: FileSystemDirectoryHandle;
+  tree: TreeNodeModel[];        // Root tree nodes
+  isLoading: boolean;
+  error: string | null;
+}
+```
+
+---
+
+## 3. LAZY LOADING & ASYNC RACE PROTECTION
+
+1. **Lazy Loading Strategy:** Directories are NOT enumerated recursively at workspace startup. Folder contents are fetched on demand when the user expands a directory node (`toggleFolder`).
+2. **Deterministic Sorting:** Directory nodes are sorted with **Folders First** (case-insensitive alphabetical order), followed by **Files** (case-insensitive alphabetical order).
+3. **Async Race Protection:** Every directory enumeration request includes an incrementing `requestToken`. If a newer refresh or user action begins while an earlier directory read is in-flight, responses from stale tokens are discarded to prevent UI state corruption.
+
+---
+
+## 4. KEYBOARD NAVIGATION & ACCESSIBILITY (WAI-ARIA)
+
+The Workspace Tree adheres to WAI-ARIA Treeview accessibility standards:
+
+- `role="tree"` on container, `role="treeitem"` on row nodes.
+- `aria-expanded="true|false"` on folder nodes.
+- `aria-selected="true|false"` on active/selected node.
+- **Keyboard Shortcuts:**
+  - `ArrowDown`: Focus next visible node.
+  - `ArrowUp`: Focus previous visible node.
+  - `ArrowRight`: Expand collapsed folder, or move focus to first child.
+  - `ArrowLeft`: Collapse expanded folder, or move focus to parent folder.
+  - `Enter` / `Space`: Activate file node (opens document) or toggle folder expansion.
+  - `Home` / `End`: Focus first / last visible node in tree.
+
+---
+
+## 5. ACTIVE FILE SYNCHRONIZATION & REVEAL
+
+- **Active Highlighting:** The Explorer matches active document resources (`activeDoc.filePath` / `fileResource.uri`) against tree node URIs and visually highlights the matching file node.
+- **Reveal Active File (`explorer.revealActiveFile`):** Triggers recursive parent folder expansion to ensure the active file node is visible and scrolled into view.
+
+---
+
+## 6. NON-DESTRUCTIVE SAFETY RULE
+
+This step establishes safe resource navigation. Destructive filesystem operations (Delete, Rename, Move, Permanent Erase, Overwrite) are strictly out-of-scope for this step and must pass through dedicated permission-checked safety workflows in future steps.

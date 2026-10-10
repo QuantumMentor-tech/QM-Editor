@@ -42,3 +42,9 @@ Never bypass `EditorAdapter` (`src/components/editor/EditorAdapter.ts`) to make 
 
 ## RULE 13 — NO UNSOLICITED AI IN EDITOR CORE
 Keep all future AI capabilities behind explicit `AIService` boundaries. Never inject model calls or LLM API keys directly into the core editor engine or component layout layers.
+
+## RULE 14 — FILE SYSTEM & EXPLORER BOUNDARY DISCIPLINE
+File Explorer and UI components must never make raw native/OS filesystem calls directly. All storage and directory enumeration must route through `FileService` or `WorkspaceService`. Explorer nodes represent navigation metadata and must not contain raw document text buffers.
+
+## RULE 15 — NON-DESTRUCTIVE EXPLORER SAFETY
+File Explorer components must never perform destructive filesystem operations (such as delete, rename, move, or bulk overwrite) without dedicated permission-checked safety workflows in approved steps.

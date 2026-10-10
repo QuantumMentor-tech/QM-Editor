@@ -30,6 +30,30 @@ export interface DocumentModel {
   lastSavedTimestamp: number;
 }
 
+export interface TreeNodeModel {
+  id: string;
+  name: string;
+  kind: 'file' | 'directory';
+  uri: string;
+  parentId: string | null;
+  handle?: FileSystemHandle;
+  hasChildren?: boolean;
+  children?: TreeNodeModel[];
+  isLoaded?: boolean;
+  isLoading?: boolean;
+  error?: string | null;
+}
+
+export interface WorkspaceRootModel {
+  id: string;
+  name: string;
+  uri: string;
+  handle?: FileSystemDirectoryHandle;
+  tree: TreeNodeModel[];
+  isLoading: boolean;
+  error: string | null;
+}
+
 export interface TabModel {
   id: string;
   documentId: string;

@@ -5,6 +5,7 @@ import { CommandContext as CommandContextType } from '../core/commands/CommandTy
 import { ShortcutManager } from '../core/commands/ShortcutManager';
 import { useShellState } from './ShellContext';
 import { useWorkspace } from './WorkspaceContext';
+import { useExplorer } from './ExplorerContext';
 
 export interface CommandContextApi {
   registry: CommandRegistry;
@@ -24,12 +25,14 @@ defaultCommands.forEach((cmd) => {
 export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { state: shellState, toggleSidebar, togglePanel, toggleTheme } = useShellState();
   const { activeDoc, saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc } = useWorkspace();
+  const { openWorkspace, refreshWorkspace, revealActiveFile } = useExplorer();
 
   const commandContextRef = useRef<CommandContextType>({
     activeDoc,
     shellState,
     workspaceActions: { saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc },
     shellActions: { toggleSidebar, togglePanel, toggleTheme },
+    explorerActions: { openWorkspace, refreshWorkspace, revealActiveFile },
   });
 
   // Keep commandContextRef in sync on re-renders
@@ -38,6 +41,7 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
     shellState,
     workspaceActions: { saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc },
     shellActions: { toggleSidebar, togglePanel, toggleTheme },
+    explorerActions: { openWorkspace, refreshWorkspace, revealActiveFile },
   };
 
   const executeCommand = async (id: string): Promise<void> => {

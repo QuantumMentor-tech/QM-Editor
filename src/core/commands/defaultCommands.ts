@@ -33,6 +33,41 @@ export const defaultCommands: Command[] = [
     },
   },
   {
+    id: 'workspace.open',
+    label: 'Open Workspace Folder...',
+    category: 'workspace',
+    shortcut: 'Mod+Shift+O',
+    canExecute: (ctx) => Boolean(ctx.explorerActions?.openWorkspace),
+    execute: async (ctx) => {
+      if (ctx.explorerActions?.openWorkspace) {
+        await ctx.explorerActions.openWorkspace();
+      }
+    },
+  },
+  {
+    id: 'explorer.refresh',
+    label: 'Refresh File Explorer',
+    category: 'workspace',
+    canExecute: (ctx) => Boolean(ctx.explorerActions?.refreshWorkspace),
+    execute: async (ctx) => {
+      if (ctx.explorerActions?.refreshWorkspace) {
+        await ctx.explorerActions.refreshWorkspace();
+      }
+    },
+  },
+  {
+    id: 'explorer.revealActiveFile',
+    label: 'Reveal Active File in Explorer',
+    category: 'workspace',
+    shortcut: 'Alt+Shift+R',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && ctx.explorerActions?.revealActiveFile),
+    execute: (ctx) => {
+      if (ctx.explorerActions?.revealActiveFile) {
+        ctx.explorerActions.revealActiveFile();
+      }
+    },
+  },
+  {
     id: 'file.save',
     label: 'Save Active Document',
     category: 'document',
