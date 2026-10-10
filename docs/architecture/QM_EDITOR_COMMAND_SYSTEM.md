@@ -65,8 +65,11 @@ export interface Command {
 
 ---
 
-## 3. REGISTRY SAFETY & DUPLICATE ID PROTECTION
+## 4. COMMAND PALETTE CONSUMER INTEGRATION
 
-1. **Unique Command IDs:** Every command must register a unique dot-notated string ID (e.g., `document.save`, `shell.toggleSidebar`).
-2. **Duplicate Detection:** Re-registering an existing command ID throws a `QMEditorError` in development to prevent subtle collision bugs.
-3. **Safe Fallback:** Executing an unregistered command logs a warning via `logger` and returns a non-crashing result.
+The **Command Palette** (`src/components/palette/CommandPaletteModal.tsx`) acts as an authoritative consumer of the Command Registry:
+- Queries metadata directly from `CommandRegistry.getAll()`.
+- Uses `CommandSearchService` for fuzzy/prefix match filtering.
+- Formats shortcuts using `ShortcutManager.formatShortcut(...)`.
+- Revalidates command availability via `canExecute(id, context)` before executing commands.
+- Triggers execution exclusively through `globalCommandRegistry.execute(id, context)`.

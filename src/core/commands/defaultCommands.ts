@@ -138,6 +138,32 @@ export const defaultCommands: Command[] = [
     },
   },
   {
+    id: 'workbench.action.findInFiles',
+    label: 'Find in Files...',
+    category: 'editor',
+    shortcut: 'Mod+Shift+F',
+    description: 'Search text content across all files in the active workspace',
+    canExecute: (ctx) => Boolean(ctx.searchActions?.workspaceFind),
+    execute: (ctx) => {
+      if (ctx.searchActions?.workspaceFind) {
+        ctx.searchActions.workspaceFind();
+      }
+    },
+  },
+  {
+    id: 'search.workspaceReplace',
+    label: 'Replace in Files...',
+    category: 'editor',
+    shortcut: 'Mod+Shift+H',
+    description: 'Search and replace text content across all files in the active workspace',
+    canExecute: (ctx) => Boolean(ctx.searchActions?.workspaceReplace),
+    execute: (ctx) => {
+      if (ctx.searchActions?.workspaceReplace) {
+        ctx.searchActions.workspaceReplace();
+      }
+    },
+  },
+  {
     id: 'file.save',
     label: 'Save Active Document',
     category: 'document',
@@ -322,13 +348,79 @@ export const defaultCommands: Command[] = [
     },
   },
   {
+    id: 'workbench.action.showCommands',
+    label: 'Command Palette...',
+    category: 'shell',
+    shortcut: 'Mod+Shift+P',
+    description: 'Search and execute editor & workbench commands',
+    canExecute: () => true,
+    execute: (ctx) => {
+      if (ctx.shellActions.openCommandPalette) {
+        ctx.shellActions.openCommandPalette();
+      }
+    },
+  },
+  {
+    id: 'workbench.action.quickOpen',
+    label: 'Go to File...',
+    category: 'document',
+    shortcut: 'Mod+P',
+    description: 'Quick Open workspace file by name or relative path',
+    canExecute: (ctx) => Boolean(ctx.navigationActions?.quickOpen),
+    execute: (ctx) => {
+      if (ctx.navigationActions?.quickOpen) ctx.navigationActions.quickOpen();
+    },
+  },
+  {
+    id: 'quickOpen.open',
+    label: 'Quick Open Resource...',
+    category: 'document',
+    description: 'Fast workspace resource navigation and file search',
+    canExecute: (ctx) => Boolean(ctx.navigationActions?.quickOpen),
+    execute: (ctx) => {
+      if (ctx.navigationActions?.quickOpen) ctx.navigationActions.quickOpen();
+    },
+  },
+  {
     id: 'file.openRecent',
     label: 'Open Recent File...',
     category: 'document',
     shortcut: 'Mod+Shift+R',
+    description: 'Open recently accessed documents',
     canExecute: (ctx) => Boolean(ctx.navigationActions?.openRecent),
     execute: (ctx) => {
       if (ctx.navigationActions?.openRecent) ctx.navigationActions.openRecent();
+    },
+  },
+  {
+    id: 'sourceControl.openPanel',
+    label: 'Source Control: Focus on Source Control View',
+    category: 'sourcecontrol',
+    shortcut: 'Mod+Shift+G',
+    description: 'Open and focus the Source Control panel in the sidebar',
+    canExecute: (ctx) => Boolean(ctx.sourceControlActions?.openPanel),
+    execute: (ctx) => {
+      if (ctx.sourceControlActions?.openPanel) ctx.sourceControlActions.openPanel();
+    },
+  },
+  {
+    id: 'sourceControl.refresh',
+    label: 'Source Control: Refresh Repository Status',
+    category: 'sourcecontrol',
+    description: 'Re-scan Git repository working tree and status',
+    canExecute: (ctx) => Boolean(ctx.sourceControlActions?.refresh),
+    execute: async (ctx) => {
+      if (ctx.sourceControlActions?.refresh) await ctx.sourceControlActions.refresh();
+    },
+  },
+  {
+    id: 'sourceControl.openDiff',
+    label: 'Source Control: Inspect Working Tree Diff',
+    category: 'sourcecontrol',
+    description: 'Open read-only diff inspection for the active document',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && ctx.sourceControlActions?.openDiff),
+    execute: async (ctx) => {
+      if (ctx.sourceControlActions?.openDiff) await ctx.sourceControlActions.openDiff();
     },
   },
 ];

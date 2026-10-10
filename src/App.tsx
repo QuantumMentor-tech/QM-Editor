@@ -12,6 +12,7 @@ import { OverlayLayer } from './components/layout/OverlayLayer';
 import { ExplorerProvider } from './state/ExplorerContext';
 import { SearchProvider } from './state/SearchContext';
 import { NavigationProvider } from './state/NavigationContext';
+import { SourceControlProvider } from './state/SourceControlContext';
 
 const AppContent: React.FC = () => {
   return (
@@ -47,9 +48,11 @@ export const App: React.FC = () => {
         <ExplorerProvider>
           <SearchProvider>
             <NavigationProvider>
-              <CommandProvider>
-                <AppContent />
-              </CommandProvider>
+              <SourceControlProvider>
+                <CommandProvider>
+                  <AppContent />
+                </CommandProvider>
+              </SourceControlProvider>
             </NavigationProvider>
           </SearchProvider>
         </ExplorerProvider>

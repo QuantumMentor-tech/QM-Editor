@@ -5,7 +5,7 @@ import { useCommand } from '../../state/CommandContext';
 import { Button } from '../common/Button';
 import { IconButton } from '../common/IconButton';
 import { Badge } from '../common/Badge';
-import { Save, Sun, Moon, Terminal, Plus, FolderOpen, Settings, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { Save, Sun, Moon, Terminal, Plus, FolderOpen, Settings, ChevronLeft, ChevronRight, Clock, Search } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const { state } = useShellState();
@@ -39,6 +39,41 @@ export const Header: React.FC = () => {
           QM EDITOR
         </span>
         <Badge variant="accent">v0.1.0 Storage Engine</Badge>
+
+        {/* Command Palette Trigger Button */}
+        <button
+          onClick={() => executeCommand('workbench.action.showCommands')}
+          aria-label="Search Commands (Ctrl+Shift+P)"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            backgroundColor: 'var(--bg-tertiary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '4px 10px',
+            color: 'var(--text-muted)',
+            fontSize: '0.8rem',
+            cursor: 'pointer',
+            marginLeft: '8px',
+            transition: 'border-color 0.15s ease',
+          }}
+        >
+          <Search size={14} style={{ color: 'var(--accent-color)' }} />
+          <span>Search commands...</span>
+          <kbd
+            style={{
+              fontSize: '0.7rem',
+              backgroundColor: 'var(--bg-secondary)',
+              color: 'var(--text-primary)',
+              padding: '1px 4px',
+              borderRadius: '3px',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            Ctrl+Shift+P
+          </kbd>
+        </button>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

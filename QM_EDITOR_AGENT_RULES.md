@@ -72,3 +72,32 @@ Maintain clear boundaries between document content buffers and presentation sett
 
 ## RULE 23 — ACCESSIBLE & RESPONSIVE SETTINGS CONTROLS
 Settings UI controls must adhere to QM Editor design system tokens, maintain full keyboard focusability, provide screen-reader accessible labels, and update editor view state live in under 5ms.
+
+## RULE 24 — COMMAND PALETTE SINGLE DATA SOURCE DISCIPLINE
+The Command Palette must use the central `CommandRegistry` as its sole authoritative source of command metadata. Never create parallel, duplicated command definition files for the palette.
+
+## RULE 25 — NO ACTION LOGIC IN COMMAND PALETTE UI
+The Command Palette is an action discovery and execution surface. It must delegate command execution strictly to `CommandRegistry.execute(id, context)` and must never contain custom, inline command handler implementations.
+
+## RULE 26 — COMMAND AVAILABILITY REVALIDATION
+Before executing any selected command, the system must revalidate `canExecute(id, context)` at execution time. Never execute a command if its availability condition evaluates to false at the moment of execution.
+
+## RULE 27 — NO DYNAMIC CODE EXECUTION FROM SEARCH QUERIES
+Search queries entered into the Command Palette must be treated as pure untrusted text for filtering metadata. Never `eval()`, execute, or pass search strings to script evaluation engines.
+
+## RULE 28 — QUICK OPEN METADATA-ONLY SEARCH DISCIPLINE
+Quick Open searches workspace resources strictly by filename and relative path metadata. Quick Open must NEVER open, read, or full-text index file contents.
+
+## RULE 29 — REUSE EXISTING TABS ON QUICK OPEN
+Selecting a resource in Quick Open that corresponds to an already-open workspace tab MUST activate the existing tab (`activateDoc(id)`) and MUST NOT instantiate duplicate document objects or tabs.
+
+## RULE 30 — WORKSPACE BOUNDARY ENFORCEMENT
+Quick Open resource indexing and search must stay strictly within the current workspace root boundary. Quick Open search queries must never resolve arbitrary paths outside the workspace scope or invoke raw OS shell commands.
+
+## RULE 31 — ASYNC GENERATION TOKEN DISCIPLINE
+Asynchronous directory indexing tasks must track generation tokens (`generationId`). Switching or closing a workspace must invalidate pending async enumeration tasks to prevent stale resource contamination across workspace boundaries.
+
+## RULE 32 — SOURCE CONTROL SAFETY & READ-ONLY DISCIPLINE
+Source Control services and UI components must remain strictly read-oriented observation tools. Git status scanning and diff inspection must never silently stage, unstage, commit, reset, discard, or mutate user files or repository metadata. UI components must never execute arbitrary raw shell process commands directly.
+
+

@@ -27,6 +27,7 @@ describe('CommandRegistry Core Engine', () => {
         theme: 'dark',
         sidebarOpen: true,
         sidebarWidth: 260,
+        sidebarView: 'explorer',
         panelOpen: false,
         activePanelView: 'output',
         activeView: 'editor',

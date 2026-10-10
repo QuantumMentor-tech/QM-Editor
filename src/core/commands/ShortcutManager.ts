@@ -33,11 +33,31 @@ export class ShortcutManager {
 
     const requiresMod = parts.includes('mod');
     const requiresShift = parts.includes('shift');
+    const requiresAlt = parts.includes('alt');
     const targetKey = parts[parts.length - 1];
 
     if (requiresMod && !isMod) return false;
+    if (!requiresMod && isMod) return false;
     if (requiresShift && !e.shiftKey) return false;
+    if (!requiresShift && e.shiftKey) return false;
+    if (requiresAlt && !e.altKey) return false;
+    if (!requiresAlt && e.altKey) return false;
 
     return key === targetKey;
+  }
+
+  public static formatShortcut(shortcutPattern: string): string {
+    if (!shortcutPattern) return '';
+    const mac = this.isMac();
+    return shortcutPattern
+      .split('+')
+      .map((part) => {
+        const p = part.trim();
+        if (p.toLowerCase() === 'mod') return mac ? '⌘' : 'Ctrl';
+        if (p.toLowerCase() === 'shift') return mac ? '⇧' : 'Shift';
+        if (p.toLowerCase() === 'alt') return mac ? '⌥' : 'Alt';
+        return p.toUpperCase();
+      })
+      .join(mac ? '' : '+');
   }
 }

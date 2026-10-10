@@ -1,12 +1,13 @@
 import React from 'react';
-import { PanelLeftClose, PanelLeft, Plus } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, Plus, FolderTree, GitBranch } from 'lucide-react';
 import { IconButton } from '../common/IconButton';
 import { useShellState } from '../../state/ShellContext';
 import { useCommand } from '../../state/CommandContext';
 import { FileExplorer } from '../explorer/FileExplorer';
+import { SourceControlPanel } from '../source-control/SourceControlPanel';
 
 export const Sidebar: React.FC = () => {
-  const { state } = useShellState();
+  const { state, setSidebarView } = useShellState();
   const { executeCommand } = useCommand();
 
   if (!state.sidebarOpen) {
@@ -20,6 +21,7 @@ export const Sidebar: React.FC = () => {
           flexDirection: 'column',
           alignItems: 'center',
           paddingTop: '8px',
+          gap: '8px',
         }}
       >
         <IconButton
@@ -27,9 +29,25 @@ export const Sidebar: React.FC = () => {
           aria-label="Expand Sidebar (Ctrl+B)"
           icon={<PanelLeft size={18} />}
         />
+        <IconButton
+          onClick={() => {
+            setSidebarView('explorer');
+          }}
+          aria-label="File Explorer"
+          icon={<FolderTree size={16} />}
+        />
+        <IconButton
+          onClick={() => {
+            setSidebarView('scm');
+          }}
+          aria-label="Source Control"
+          icon={<GitBranch size={16} />}
+        />
       </div>
     );
   }
+
+  const isExplorer = state.sidebarView === 'explorer';
 
   return (
     <aside
@@ -45,7 +63,7 @@ export const Sidebar: React.FC = () => {
     >
       <div
         style={{
-          padding: '8px 12px',
+          padding: '4px 8px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -53,9 +71,48 @@ export const Sidebar: React.FC = () => {
           backgroundColor: 'var(--bg-header)',
         }}
       >
-        <span style={{ fontWeight: 600, fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.8px' }}>
-          PRIMARY SIDEBAR
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button
+            onClick={() => setSidebarView('explorer')}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)',
+              fontWeight: 600,
+              fontSize: '0.75rem',
+              color: isExplorer ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: isExplorer ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <FolderTree size={13} /> Explorer
+          </button>
+
+          <button
+            onClick={() => setSidebarView('scm')}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)',
+              fontWeight: 600,
+              fontSize: '0.75rem',
+              color: !isExplorer ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: !isExplorer ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <GitBranch size={13} /> Source Control
+          </button>
+        </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <IconButton
             onClick={() => executeCommand('file.new')}
@@ -71,7 +128,7 @@ export const Sidebar: React.FC = () => {
       </div>
 
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        <FileExplorer />
+        {isExplorer ? <FileExplorer /> : <SourceControlPanel />}
       </div>
     </aside>
   );

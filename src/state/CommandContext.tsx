@@ -8,9 +8,15 @@ import { useWorkspace } from './WorkspaceContext';
 import { useExplorer } from './ExplorerContext';
 import { useSearch } from './SearchContext';
 import { useNavigation } from './NavigationContext';
+import { useSourceControl } from './SourceControlContext';
 import { GoToLineModal } from '../components/navigation/GoToLineModal';
 import { RecentDocumentsModal } from '../components/navigation/RecentDocumentsModal';
 import { EditorSettingsModal } from '../components/settings/EditorSettingsModal';
+import { CommandPaletteModal } from '../components/palette/CommandPaletteModal';
+import { QuickOpenModal } from '../components/navigation/QuickOpenModal';
+import { WorkspaceSearchModal } from '../components/search/WorkspaceSearchModal';
+import { SourceControlDiffModal } from '../components/source-control/SourceControlDiffModal';
+import { workspaceIndexService } from '../services/WorkspaceIndexService';
 import { fileService } from '../services/FileService';
 
 export interface CommandContextApi {
@@ -32,6 +38,7 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const {
     state: shellState,
     toggleSidebar,
+    setSidebarView,
     togglePanel,
     toggleTheme,
     zoomIn,
@@ -42,14 +49,63 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
     toggleWhitespace,
     toggleFolding,
     openDialog,
+    closeDialog,
   } = useShellState();
-  const { activeDoc, openDocs, saveDoc, saveDocAs, createDoc, openFile, openFilePath, closeDoc, activateDoc } = useWorkspace();
-  const { openWorkspace, refreshWorkspace, revealActiveFile } = useExplorer();
+  const { activeDoc, openDocs, saveDoc, saveDocAs, createDoc, openFile, openFilePath, closeDoc, activateDoc, updateText } = useWorkspace();
+  const { workspaceRoot, openWorkspace, refreshWorkspace, revealActiveFile } = useExplorer();
   const { openSearch, closeSearch, findNext, findPrevious, replaceCurrent, replaceAll } = useSearch();
   const { navigateBack, navigateForward, canNavigateBack, canNavigateForward, currentPos } = useNavigation();
+  const { refresh: refreshSCM, getDiff: getDiffSCM } = useSourceControl();
 
   const openSettings = () => {
     openDialog('Editor Preferences & Settings', <EditorSettingsModal />);
+  };
+
+  const handleOpenCommandPalette = () => {
+    openDialog(
+      'Command Palette',
+      <CommandPaletteModal
+        registry={globalCommandRegistry}
+        commandContext={commandContextRef.current}
+        onExecuteCommand={async (id) => {
+          closeDialog();
+          setTimeout(async () => {
+            await executeCommand(id);
+          }, 10);
+        }}
+        onClose={closeDialog}
+      />
+    );
+  };
+
+  const handleQuickOpen = () => {
+    if (workspaceRoot) {
+      workspaceIndexService.indexFromTree(workspaceRoot);
+    }
+    openDialog(
+      'Quick Open File',
+      <QuickOpenModal
+        workspaceRoot={workspaceRoot}
+        openDocs={openDocs}
+        onSelectResource={async (res) => {
+          closeDialog();
+          const existing = openDocs.find(
+            (d) =>
+              (d.fileResource && d.fileResource.uri.toLowerCase() === res.uri.toLowerCase()) ||
+              (d.filePath && d.filePath.toLowerCase() === res.uri.toLowerCase())
+          );
+          if (existing) {
+            activateDoc(existing.id);
+          } else if (openFilePath) {
+            await openFilePath(res.uri);
+          }
+          if (revealActiveFile) {
+            revealActiveFile(res.uri);
+          }
+        }}
+        onClose={closeDialog}
+      />
+    );
   };
 
   const handleGoToLineModal = () => {
@@ -119,8 +175,76 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
     navigateBack: handleNavigateBack,
     navigateForward: handleNavigateForward,
     openRecent: handleOpenRecentModal,
+    quickOpen: handleQuickOpen,
     canNavigateBack,
     canNavigateForward,
+  };
+
+  const handleWorkspaceSearchModal = () => {
+    if (workspaceRoot) {
+      workspaceIndexService.indexFromTree(workspaceRoot);
+    }
+    openDialog(
+      'Search in Workspace',
+      <WorkspaceSearchModal
+        workspaceRoot={workspaceRoot}
+        openDocs={openDocs}
+        updateText={updateText}
+        onSelectMatch={async (res, match) => {
+          closeDialog();
+          const existing = openDocs.find(
+            (d) =>
+              (d.fileResource && d.fileResource.uri.toLowerCase() === res.uri.toLowerCase()) ||
+              (d.filePath && d.filePath.toLowerCase() === res.uri.toLowerCase())
+          );
+          if (existing) {
+            activateDoc(existing.id);
+            window.dispatchEvent(
+              new CustomEvent('qm:editor:gotoline', { detail: { line: match.line, column: match.column } })
+            );
+          } else if (openFilePath) {
+            await openFilePath(res.uri);
+            window.dispatchEvent(
+              new CustomEvent('qm:editor:gotoline', { detail: { line: match.line, column: match.column } })
+            );
+          }
+          if (revealActiveFile) {
+            revealActiveFile(res.uri);
+          }
+        }}
+        openDialog={openDialog}
+        closeDialog={closeDialog}
+      />
+    );
+  };
+
+  const searchActions = {
+    openSearch,
+    closeSearch,
+    findNext,
+    findPrevious,
+    replaceCurrent,
+    replaceAll,
+    workspaceFind: handleWorkspaceSearchModal,
+    workspaceReplace: handleWorkspaceSearchModal,
+  };
+
+  const handleOpenScmDiff = async () => {
+    const uri = activeDoc?.filePath || activeDoc?.fileResource?.uri;
+    if (!uri) return;
+    const diffResult = await getDiffSCM(uri);
+    openDialog(
+      `Diff: ${activeDoc?.title || 'Active Document'}`,
+      <SourceControlDiffModal diffResult={diffResult} onClose={closeDialog} />
+    );
+  };
+
+  const sourceControlActions = {
+    openPanel: () => setSidebarView('scm'),
+    refresh: async () => {
+      await refreshSCM();
+    },
+    openDiff: handleOpenScmDiff,
   };
 
   const commandContextRef = useRef<CommandContextType>({
@@ -139,10 +263,12 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
       toggleWhitespace,
       toggleFolding,
       openSettings,
+      openCommandPalette: handleOpenCommandPalette,
     },
     explorerActions: { openWorkspace, refreshWorkspace, revealActiveFile },
-    searchActions: { openSearch, closeSearch, findNext, findPrevious, replaceCurrent, replaceAll },
+    searchActions,
     navigationActions,
+    sourceControlActions,
   });
 
   // Keep commandContextRef in sync on re-renders
@@ -162,10 +288,12 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
       toggleWhitespace,
       toggleFolding,
       openSettings,
+      openCommandPalette: handleOpenCommandPalette,
     },
     explorerActions: { openWorkspace, refreshWorkspace, revealActiveFile },
-    searchActions: { openSearch, closeSearch, findNext, findPrevious, replaceCurrent, replaceAll },
+    searchActions,
     navigationActions,
+    sourceControlActions,
   };
 
   const executeCommand = async (id: string): Promise<void> => {

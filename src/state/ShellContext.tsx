@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ShellState, ThemeMode, ShellView, PanelView, EditorSettings } from '../types';
+import { ShellState, ThemeMode, ShellView, SidebarView, PanelView, EditorSettings } from '../types';
 import { PreferencesService, DEFAULT_EDITOR_SETTINGS } from '../services/PreferencesService';
 
 export interface ShellContextType {
@@ -9,6 +9,7 @@ export interface ShellContextType {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarWidth: (width: number) => void;
+  setSidebarView: (view: SidebarView) => void;
   togglePanel: () => void;
   setActivePanelView: (view: PanelView) => void;
   setActiveView: (view: ShellView) => void;
@@ -33,6 +34,7 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     theme: initialPrefs.theme,
     sidebarOpen: initialPrefs.sidebarOpen,
     sidebarWidth: initialPrefs.sidebarWidth,
+    sidebarView: 'explorer',
     panelOpen: false,
     activePanelView: initialPrefs.activePanelView,
     activeView: 'editor',
@@ -73,6 +75,10 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const clamped = Math.max(160, Math.min(500, sidebarWidth));
     setState((prev) => ({ ...prev, sidebarWidth: clamped }));
     PreferencesService.savePreferences({ sidebarWidth: clamped });
+  };
+
+  const setSidebarView = (sidebarView: SidebarView) => {
+    setState((prev) => ({ ...prev, sidebarView, sidebarOpen: true }));
   };
 
   const togglePanel = () => {
@@ -155,6 +161,7 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         toggleSidebar,
         setSidebarOpen,
         setSidebarWidth,
+        setSidebarView,
         togglePanel,
         setActivePanelView,
         setActiveView,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { TreeNodeModel } from '../../types';
+import { useSourceControl } from '../../state/SourceControlContext';
 import { ChevronRight, ChevronDown, Folder, FolderOpen, FileText, Loader2, AlertCircle } from 'lucide-react';
 
 export interface TreeNodeRowProps {
@@ -24,6 +25,11 @@ export const TreeNodeRow: React.FC<TreeNodeRowProps> = ({
   onActivate,
 }) => {
   const isDirectory = node.kind === 'directory';
+  const { state: scState } = useSourceControl();
+
+  const fileStatus = !isDirectory && scState.isGitRepository
+    ? scState.fileStatuses.get(node.uri.toLowerCase())
+    : undefined;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -49,6 +55,50 @@ export const TreeNodeRow: React.FC<TreeNodeRowProps> = ({
   const getTextColor = (): string => {
     if (isActive) return 'var(--text-accent)';
     return 'var(--text-primary)';
+  };
+
+  const renderStatusBadge = () => {
+    if (!fileStatus || fileStatus.displayStatus === 'unmodified') return null;
+    let color = 'var(--text-muted)';
+    let badge = '•';
+
+    switch (fileStatus.displayStatus) {
+      case 'modified':
+        color = 'var(--warning)';
+        badge = 'M';
+        break;
+      case 'untracked':
+        color = 'var(--success)';
+        badge = 'U';
+        break;
+      case 'deleted':
+        color = 'var(--error)';
+        badge = 'D';
+        break;
+      case 'staged':
+        color = 'var(--accent-primary)';
+        badge = 'S';
+        break;
+      case 'conflict':
+        color = 'var(--accent-error, #f85149)';
+        badge = 'C';
+        break;
+    }
+
+    return (
+      <span
+        title={`Git Status: ${fileStatus.displayStatus}`}
+        style={{
+          color,
+          fontWeight: 700,
+          fontSize: '0.7rem',
+          marginLeft: '4px',
+          flexShrink: 0,
+        }}
+      >
+        {badge}
+      </span>
+    );
   };
 
   return (
@@ -131,6 +181,9 @@ export const TreeNodeRow: React.FC<TreeNodeRowProps> = ({
       >
         {node.name}
       </span>
+
+      {/* Git Status Badge */}
+      {renderStatusBadge()}
 
       {/* Error indicator */}
       {node.error && (

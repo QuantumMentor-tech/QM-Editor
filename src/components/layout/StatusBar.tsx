@@ -4,13 +4,15 @@ import { useWorkspace } from '../../state/WorkspaceContext';
 import { useShellState } from '../../state/ShellContext';
 import { useCommand } from '../../state/CommandContext';
 import { useNavigation } from '../../state/NavigationContext';
-import { Settings } from 'lucide-react';
+import { useSourceControl } from '../../state/SourceControlContext';
+import { Settings, GitBranch } from 'lucide-react';
 
 export const StatusBar: React.FC = () => {
   const { activeDoc, saveStatus, lastErrorMessage } = useWorkspace();
   const { state: shellState, updateEditorSettings } = useShellState();
   const { executeCommand } = useCommand();
   const { currentPos } = useNavigation();
+  const { state: scState } = useSourceControl();
   const settings = shellState.editorSettings;
 
   const getStatusType = (): StatusType => {
@@ -51,6 +53,31 @@ export const StatusBar: React.FC = () => {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {scState.isGitRepository && (
+          <>
+            <button
+              onClick={() => executeCommand('sourceControl.openPanel')}
+              title="Click to view Source Control panel"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'inherit',
+                font: 'inherit',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '2px 4px',
+                borderRadius: 'var(--radius-sm)',
+                fontWeight: 600,
+              }}
+            >
+              <GitBranch size={13} style={{ color: 'var(--accent-primary)' }} />
+              <span>{scState.currentBranch || 'main'}</span>
+            </button>
+            <span>•</span>
+          </>
+        )}
         <span style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {filePath}
         </span>

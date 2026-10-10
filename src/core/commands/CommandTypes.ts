@@ -1,6 +1,6 @@
 import { DocumentModel, ShellState } from '../../types';
 
-export type CommandCategory = 'editor' | 'document' | 'shell' | 'workspace';
+export type CommandCategory = 'editor' | 'document' | 'shell' | 'workspace' | 'sourcecontrol';
 
 export interface CommandContext {
   activeDoc: DocumentModel | null;
@@ -25,6 +25,7 @@ export interface CommandContext {
     toggleWhitespace?: () => void;
     toggleFolding?: () => void;
     openSettings?: () => void;
+    openCommandPalette?: () => void;
   };
   explorerActions?: {
     openWorkspace: () => void | Promise<void>;
@@ -38,14 +39,22 @@ export interface CommandContext {
     findPrevious: () => void;
     replaceCurrent: () => void;
     replaceAll: () => void;
+    workspaceFind?: () => void;
+    workspaceReplace?: () => void;
   };
   navigationActions?: {
     goToLine: () => void;
     navigateBack: () => void;
     navigateForward: () => void;
     openRecent: () => void;
+    quickOpen?: () => void;
     canNavigateBack: boolean;
     canNavigateForward: boolean;
+  };
+  sourceControlActions?: {
+    openPanel: () => void;
+    refresh: () => void | Promise<void>;
+    openDiff?: () => void | Promise<void>;
   };
 }
 
@@ -54,6 +63,8 @@ export interface Command {
   label: string;
   category: CommandCategory;
   shortcut?: string;
+  description?: string;
+  aliases?: string[];
   canExecute?: (ctx: CommandContext) => boolean;
   execute: (ctx: CommandContext) => void | Promise<void>;
 }

@@ -4,6 +4,7 @@
 
 export type ThemeMode = 'dark' | 'light';
 export type ShellView = 'editor' | 'settings' | 'extensions';
+export type SidebarView = 'explorer' | 'scm';
 export type PanelView = 'output' | 'problems' | 'terminal';
 
 export type WordWrapMode = 'off' | 'on';
@@ -115,6 +116,7 @@ export interface ShellState {
   theme: ThemeMode;
   sidebarOpen: boolean;
   sidebarWidth: number;
+  sidebarView: SidebarView;
   panelOpen: boolean;
   activePanelView: PanelView;
   activeView: ShellView;
