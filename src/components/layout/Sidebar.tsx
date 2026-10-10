@@ -3,10 +3,12 @@ import { FileText, FolderOpen, PanelLeftClose, PanelLeft, Plus } from 'lucide-re
 import { IconButton } from '../common/IconButton';
 import { useShellState } from '../../state/ShellContext';
 import { useWorkspace } from '../../state/WorkspaceContext';
+import { useCommand } from '../../state/CommandContext';
 
 export const Sidebar: React.FC = () => {
-  const { state, toggleSidebar } = useShellState();
-  const { registry, activateDoc, createDoc } = useWorkspace();
+  const { state } = useShellState();
+  const { registry, activateDoc } = useWorkspace();
+  const { executeCommand } = useCommand();
 
   if (!state.sidebarOpen) {
     return (
@@ -22,8 +24,8 @@ export const Sidebar: React.FC = () => {
         }}
       >
         <IconButton
-          onClick={toggleSidebar}
-          aria-label="Expand Sidebar"
+          onClick={() => executeCommand('shell.toggleSidebar')}
+          aria-label="Expand Sidebar (Ctrl+B)"
           icon={<PanelLeft size={18} />}
         />
       </div>
@@ -60,13 +62,13 @@ export const Sidebar: React.FC = () => {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <IconButton
-            onClick={() => createDoc(`Untitled-${registry.openDocIds.length + 1}.txt`)}
-            aria-label="New Document"
+            onClick={() => executeCommand('document.new')}
+            aria-label="New Document (Ctrl+N)"
             icon={<Plus size={14} />}
           />
           <IconButton
-            onClick={toggleSidebar}
-            aria-label="Collapse Sidebar"
+            onClick={() => executeCommand('shell.toggleSidebar')}
+            aria-label="Collapse Sidebar (Ctrl+B)"
             icon={<PanelLeftClose size={16} />}
           />
         </div>

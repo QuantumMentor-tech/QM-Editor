@@ -1,22 +1,18 @@
 import React from 'react';
 import { useShellState } from '../../state/ShellContext';
 import { useWorkspace } from '../../state/WorkspaceContext';
+import { useCommand } from '../../state/CommandContext';
 import { Button } from '../common/Button';
 import { IconButton } from '../common/IconButton';
 import { Badge } from '../common/Badge';
 import { Save, Sun, Moon, Terminal, Plus } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { state, toggleTheme, togglePanel } = useShellState();
-  const { activeDoc, saveDoc, createDoc, registry } = useWorkspace();
+  const { state } = useShellState();
+  const { activeDoc } = useWorkspace();
+  const { executeCommand, canExecuteCommand } = useCommand();
 
-  const isDirty = activeDoc?.isDirty || false;
-
-  const handleSave = () => {
-    if (activeDoc) {
-      saveDoc(activeDoc.id);
-    }
-  };
+  const canSave = canExecuteCommand('document.save');
 
   return (
     <header
@@ -40,12 +36,12 @@ export const Header: React.FC = () => {
         <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)', letterSpacing: '0.5px' }}>
           QM EDITOR
         </span>
-        <Badge variant="accent">v0.1.0 Workspace</Badge>
+        <Badge variant="accent">v0.1.0 Command Engine</Badge>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <Button
-          onClick={() => createDoc(`Untitled-${registry.openDocIds.length + 1}.txt`)}
+          onClick={() => executeCommand('document.new')}
           variant="secondary"
           icon={<Plus size={16} />}
         >
@@ -53,24 +49,24 @@ export const Header: React.FC = () => {
         </Button>
 
         <Button
-          onClick={handleSave}
-          disabled={!isDirty || !activeDoc}
-          variant={isDirty ? 'primary' : 'secondary'}
+          onClick={() => executeCommand('document.save')}
+          disabled={!canSave || !activeDoc}
+          variant={canSave ? 'primary' : 'secondary'}
           icon={<Save size={16} />}
         >
-          Save
+          Save (Ctrl+S)
         </Button>
 
         <IconButton
-          onClick={togglePanel}
+          onClick={() => executeCommand('shell.togglePanel')}
           active={state.panelOpen}
           aria-label="Toggle Console Panel"
           icon={<Terminal size={18} />}
         />
 
         <IconButton
-          onClick={toggleTheme}
-          aria-label="Toggle Theme"
+          onClick={() => executeCommand('shell.toggleTheme')}
+          aria-label="Toggle Theme Mode"
           icon={state.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         />
       </div>

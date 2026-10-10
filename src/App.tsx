@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShellProvider } from './state/ShellContext';
 import { WorkspaceProvider } from './state/WorkspaceContext';
+import { CommandProvider } from './state/CommandContext';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { MainWorkspace } from './components/layout/MainWorkspace';
@@ -39,7 +40,9 @@ export const App: React.FC = () => {
   return (
     <ShellProvider>
       <WorkspaceProvider>
-        <AppContent />
+        <CommandProvider>
+          <AppContent />
+        </CommandProvider>
       </WorkspaceProvider>
     </ShellProvider>
   );
