@@ -1,4 +1,4 @@
-import { DocumentModel } from '../types';
+import { DocumentModel, FileResource } from '../types';
 import { updateDocumentContent, markDocumentSaved } from './document';
 
 export interface DocumentRegistryState {
@@ -23,16 +23,40 @@ export const createInitialRegistry = (initialDocs: DocumentModel[] = []): Docume
   };
 };
 
+export const findExistingDocumentByResource = (
+  state: DocumentRegistryState,
+  uriOrPath: string
+): DocumentModel | undefined => {
+  if (!uriOrPath) return undefined;
+  return Object.values(state.documents).find(
+    (doc) =>
+      doc.filePath === uriOrPath ||
+      doc.fileResource?.uri === uriOrPath
+  );
+};
+
 export const registerOpenDocument = (
   state: DocumentRegistryState,
   doc: DocumentModel
 ): DocumentRegistryState => {
-  // If already open, just activate it
+  // If document with same ID is already open, activate it
   if (state.documents[doc.id]) {
     return {
       ...state,
       activeDocId: doc.id,
     };
+  }
+
+  // If document with same file path/resource is already open, activate existing tab
+  const resourceUri = doc.fileResource?.uri || doc.filePath;
+  if (resourceUri) {
+    const existing = findExistingDocumentByResource(state, resourceUri);
+    if (existing) {
+      return {
+        ...state,
+        activeDocId: existing.id,
+      };
+    }
   }
 
   return {
@@ -113,12 +137,15 @@ export const updateDocumentText = (
 
 export const saveDocumentState = (
   state: DocumentRegistryState,
-  documentId: string
+  documentId: string,
+  savedRevisionTarget?: number,
+  newFileResource?: FileResource,
+  newFilePath?: string
 ): DocumentRegistryState => {
   const targetDoc = state.documents[documentId];
   if (!targetDoc) return state;
 
-  const saved = markDocumentSaved(targetDoc);
+  const saved = markDocumentSaved(targetDoc, savedRevisionTarget, newFileResource, newFilePath);
   return {
     ...state,
     documents: {

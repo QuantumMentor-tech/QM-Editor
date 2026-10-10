@@ -6,12 +6,26 @@ export type ThemeMode = 'dark' | 'light';
 export type ShellView = 'editor' | 'settings' | 'extensions';
 export type PanelView = 'output' | 'problems' | 'terminal';
 
+export interface FileResource {
+  uri: string;
+  name: string;
+  extension: string;
+  readOnly: boolean;
+  exists: boolean;
+  size?: number;
+  modifiedTime?: number;
+  handle?: FileSystemFileHandle;
+}
+
 export interface DocumentModel {
   id: string;
   title: string;
   content: string;
   filePath?: string;
+  fileResource?: FileResource;
   language: string;
+  contentRevision: number;
+  savedRevision: number;
   isDirty: boolean;
   lastSavedTimestamp: number;
 }

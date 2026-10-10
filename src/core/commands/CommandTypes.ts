@@ -6,8 +6,10 @@ export interface CommandContext {
   activeDoc: DocumentModel | null;
   shellState: ShellState;
   workspaceActions: {
-    saveDoc: (id: string) => void;
-    createDoc: (title: string, content?: string) => void;
+    saveDoc: (id: string) => void | Promise<void>;
+    saveDocAs?: (id: string) => void | Promise<void>;
+    createDoc: (title?: string, content?: string) => void;
+    openFile?: () => void | Promise<void>;
     closeDoc: (id: string) => void;
     activateDoc: (id: string) => void;
   };

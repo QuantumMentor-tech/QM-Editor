@@ -5,14 +5,14 @@ import { useCommand } from '../../state/CommandContext';
 import { Button } from '../common/Button';
 import { IconButton } from '../common/IconButton';
 import { Badge } from '../common/Badge';
-import { Save, Sun, Moon, Terminal, Plus } from 'lucide-react';
+import { Save, Sun, Moon, Terminal, Plus, FolderOpen } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const { state } = useShellState();
   const { activeDoc } = useWorkspace();
   const { executeCommand, canExecuteCommand } = useCommand();
 
-  const canSave = canExecuteCommand('document.save');
+  const canSave = canExecuteCommand('file.save');
 
   return (
     <header
@@ -36,20 +36,28 @@ export const Header: React.FC = () => {
         <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)', letterSpacing: '0.5px' }}>
           QM EDITOR
         </span>
-        <Badge variant="accent">v0.1.0 Command Engine</Badge>
+        <Badge variant="accent">v0.1.0 Storage Engine</Badge>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <Button
-          onClick={() => executeCommand('document.new')}
+          onClick={() => executeCommand('file.new')}
           variant="secondary"
           icon={<Plus size={16} />}
         >
-          New Document
+          New File
         </Button>
 
         <Button
-          onClick={() => executeCommand('document.save')}
+          onClick={() => executeCommand('file.open')}
+          variant="secondary"
+          icon={<FolderOpen size={16} />}
+        >
+          Open File
+        </Button>
+
+        <Button
+          onClick={() => executeCommand('file.save')}
           disabled={!canSave || !activeDoc}
           variant={canSave ? 'primary' : 'secondary'}
           icon={<Save size={16} />}

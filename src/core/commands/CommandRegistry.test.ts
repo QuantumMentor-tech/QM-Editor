@@ -16,6 +16,8 @@ describe('CommandRegistry Core Engine', () => {
         title: 'test.txt',
         content: 'hello',
         language: 'plaintext',
+        contentRevision: 1,
+        savedRevision: 0,
         isDirty: true,
         lastSavedTimestamp: Date.now(),
       },

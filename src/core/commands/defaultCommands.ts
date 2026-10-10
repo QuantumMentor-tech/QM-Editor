@@ -2,25 +2,69 @@ import { Command } from './CommandTypes';
 
 export const defaultCommands: Command[] = [
   {
-    id: 'document.save',
-    label: 'Save Active Document',
+    id: 'file.new',
+    label: 'New File',
     category: 'document',
-    shortcut: 'Mod+S',
-    canExecute: (ctx) => Boolean(ctx.activeDoc && ctx.activeDoc.isDirty),
+    shortcut: 'Mod+N',
+    canExecute: () => true,
     execute: (ctx) => {
-      if (ctx.activeDoc) {
-        ctx.workspaceActions.saveDoc(ctx.activeDoc.id);
-      }
+      ctx.workspaceActions.createDoc();
     },
   },
   {
     id: 'document.new',
     label: 'New Document',
     category: 'document',
-    shortcut: 'Mod+N',
     canExecute: () => true,
     execute: (ctx) => {
-      ctx.workspaceActions.createDoc('Untitled.txt');
+      ctx.workspaceActions.createDoc();
+    },
+  },
+  {
+    id: 'file.open',
+    label: 'Open File...',
+    category: 'document',
+    shortcut: 'Mod+O',
+    canExecute: (ctx) => Boolean(ctx.workspaceActions.openFile),
+    execute: async (ctx) => {
+      if (ctx.workspaceActions.openFile) {
+        await ctx.workspaceActions.openFile();
+      }
+    },
+  },
+  {
+    id: 'file.save',
+    label: 'Save Active Document',
+    category: 'document',
+    shortcut: 'Mod+S',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && ctx.activeDoc.isDirty),
+    execute: async (ctx) => {
+      if (ctx.activeDoc) {
+        await ctx.workspaceActions.saveDoc(ctx.activeDoc.id);
+      }
+    },
+  },
+  {
+    id: 'document.save',
+    label: 'Save Active Document',
+    category: 'document',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && ctx.activeDoc.isDirty),
+    execute: async (ctx) => {
+      if (ctx.activeDoc) {
+        await ctx.workspaceActions.saveDoc(ctx.activeDoc.id);
+      }
+    },
+  },
+  {
+    id: 'file.saveAs',
+    label: 'Save As...',
+    category: 'document',
+    shortcut: 'Mod+Shift+S',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && ctx.workspaceActions.saveDocAs),
+    execute: async (ctx) => {
+      if (ctx.activeDoc && ctx.workspaceActions.saveDocAs) {
+        await ctx.workspaceActions.saveDocAs(ctx.activeDoc.id);
+      }
     },
   },
   {

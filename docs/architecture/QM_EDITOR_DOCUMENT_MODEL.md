@@ -47,14 +47,28 @@ QM Editor decouples **Document Models** from **Editor Views** and **Shell Layout
 ## 3. DOMAIN MODEL CONTRACT (`src/types/index.ts`)
 
 ```typescript
+export interface FileResource {
+  uri: string;                 // Normalized URI/path (e.g. 'file:///C:/path/notes.md' or 'browser-fs://...')
+  name: string;                // Filename with extension (e.g. 'notes.md')
+  extension: string;           // Extension without leading dot (e.g. 'md')
+  readOnly: boolean;           // Whether the file resource is read-only
+  exists: boolean;             // Whether resource exists physically on disk
+  size?: number;               // Byte size of physical file
+  modifiedTime?: number;       // Last modified epoch timestamp
+  handle?: FileSystemFileHandle; // Optional browser File System Access API handle
+}
+
 export interface DocumentModel {
   id: string;                  // Unique, immutable session ID (e.g. 'doc-1698293...')
-  title: string;               // Display title (e.g. 'notes.md')
-  content: string;             // Text content string
-  filePath?: string;           // Optional file resource URI/path
+  title: string;               // Display title (e.g. 'notes.md' or 'Untitled')
+  content: string;             // Active in-memory text content
+  filePath?: string;           // Optional normalized file path / URI
+  fileResource?: FileResource; // Attached physical storage resource
   language: string;            // Language mode (e.g. 'markdown', 'typescript')
-  isDirty: boolean;            // Dirty flag (true when content !== last saved content)
-  lastSavedTimestamp: number;  // Epoch timestamp of last save
+  contentRevision: number;     // Incremented on every content change
+  savedRevision: number;       // Equal to contentRevision when saved physically
+  isDirty: boolean;            // Evaluated as contentRevision !== savedRevision
+  lastSavedTimestamp: number;  // Epoch timestamp of last successful save
 }
 ```
 

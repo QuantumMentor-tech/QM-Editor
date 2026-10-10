@@ -9,7 +9,7 @@ import {
   saveDocumentState,
 } from './documentRegistry';
 
-describe('DocumentRegistry Core Engine', () => {
+describe('DocumentRegistry Core Engine & Storage Integration', () => {
   it('initializes registry correctly with documents', () => {
     const doc1 = createNewDocument('doc1.txt', 'Content 1');
     const registry = createInitialRegistry([doc1]);
@@ -19,16 +19,22 @@ describe('DocumentRegistry Core Engine', () => {
     expect(registry.documents[doc1.id]).toEqual(doc1);
   });
 
-  it('prevents duplicate tabs when opening an existing document', () => {
-    const doc1 = createNewDocument('doc1.txt', 'Content 1');
-    const doc2 = createNewDocument('doc2.txt', 'Content 2');
+  it('prevents duplicate tabs when opening an existing document by ID or path', () => {
+    const doc1 = createNewDocument('doc1.txt', 'Content 1', 'plaintext', 'file:///C:/path/doc1.txt');
+    const doc2 = createNewDocument('doc2.txt', 'Content 2', 'plaintext', 'file:///C:/path/doc2.txt');
 
     let registry = createInitialRegistry([doc1, doc2]);
     expect(registry.openDocIds).toEqual([doc1.id, doc2.id]);
 
-    // Attempt to register doc1 again
+    // Attempt to register doc1 again by ID
     registry = registerOpenDocument(registry, doc1);
     expect(registry.openDocIds).toEqual([doc1.id, doc2.id]);
+    expect(registry.activeDocId).toBe(doc1.id);
+
+    // Attempt to register another DocumentModel instance pointing to same file path
+    const doc1DuplicatePath = createNewDocument('doc1.txt', 'Content 1', 'plaintext', 'file:///C:/path/doc1.txt');
+    registry = registerOpenDocument(registry, doc1DuplicatePath);
+    expect(registry.openDocIds).toEqual([doc1.id, doc2.id]); // Must not create new tab!
     expect(registry.activeDocId).toBe(doc1.id);
   });
 

@@ -23,12 +23,12 @@ defaultCommands.forEach((cmd) => {
 
 export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { state: shellState, toggleSidebar, togglePanel, toggleTheme } = useShellState();
-  const { activeDoc, saveDoc, createDoc, closeDoc, activateDoc } = useWorkspace();
+  const { activeDoc, saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc } = useWorkspace();
 
   const commandContextRef = useRef<CommandContextType>({
     activeDoc,
     shellState,
-    workspaceActions: { saveDoc, createDoc, closeDoc, activateDoc },
+    workspaceActions: { saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc },
     shellActions: { toggleSidebar, togglePanel, toggleTheme },
   });
 
@@ -36,7 +36,7 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
   commandContextRef.current = {
     activeDoc,
     shellState,
-    workspaceActions: { saveDoc, createDoc, closeDoc, activateDoc },
+    workspaceActions: { saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc },
     shellActions: { toggleSidebar, togglePanel, toggleTheme },
   };
 

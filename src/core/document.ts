@@ -1,20 +1,66 @@
-import { DocumentModel } from '../types';
+import { DocumentModel, FileResource } from '../types';
 import { QMEditorError, ErrorCode } from '../utils/errors';
+
+export const detectLanguageFromExtension = (filename: string): string => {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'ts':
+    case 'tsx':
+      return 'typescript';
+    case 'js':
+    case 'jsx':
+      return 'javascript';
+    case 'json':
+      return 'json';
+    case 'md':
+    case 'markdown':
+      return 'markdown';
+    case 'html':
+    case 'htm':
+      return 'html';
+    case 'css':
+      return 'css';
+    case 'py':
+      return 'python';
+    case 'cpp':
+    case 'c':
+    case 'h':
+    case 'hpp':
+      return 'cpp';
+    case 'rs':
+      return 'rust';
+    default:
+      return 'plaintext';
+  }
+};
+
+export const extractFileName = (pathOrUri: string): string => {
+  const parts = pathOrUri.replace(/\\/g, '/').split('/');
+  return parts[parts.length - 1] || pathOrUri;
+};
 
 export const createNewDocument = (
   title: string,
   content: string = '',
-  language: string = 'plaintext'
+  language: string = 'plaintext',
+  filePath?: string,
+  fileResource?: FileResource
 ): DocumentModel => {
   if (!title || title.trim() === '') {
     throw new QMEditorError('Document title cannot be empty', ErrorCode.DOCUMENT_VALIDATION_ERROR, 'warning');
   }
 
+  const detectedLanguage = language === 'plaintext' ? detectLanguageFromExtension(title) : language;
+
   return {
     id: `doc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     title: title.trim(),
     content,
-    language,
+    filePath,
+    fileResource,
+    language: detectedLanguage,
+    contentRevision: 0,
+    savedRevision: 0,
     isDirty: false,
     lastSavedTimestamp: Date.now(),
   };
@@ -24,17 +70,43 @@ export const updateDocumentContent = (
   document: DocumentModel,
   newContent: string
 ): DocumentModel => {
+  if (document.content === newContent) {
+    return document;
+  }
+
+  const nextContentRevision = document.contentRevision + 1;
+  const isDirty = nextContentRevision !== document.savedRevision;
+
   return {
     ...document,
     content: newContent,
-    isDirty: document.content !== newContent,
+    contentRevision: nextContentRevision,
+    isDirty,
   };
 };
 
-export const markDocumentSaved = (document: DocumentModel): DocumentModel => {
+export const markDocumentSaved = (
+  document: DocumentModel,
+  savedRevisionTarget?: number,
+  newFileResource?: FileResource,
+  newFilePath?: string
+): DocumentModel => {
+  const targetSavedRevision = savedRevisionTarget !== undefined ? savedRevisionTarget : document.contentRevision;
+  const isStillDirty = document.contentRevision !== targetSavedRevision;
+
+  const resource = newFileResource || document.fileResource;
+  const path = newFilePath || resource?.uri || document.filePath;
+  const updatedTitle = resource?.name || (newFilePath ? extractFileName(newFilePath) : document.title);
+  const updatedLanguage = detectLanguageFromExtension(updatedTitle);
+
   return {
     ...document,
-    isDirty: false,
+    title: updatedTitle,
+    filePath: path,
+    fileResource: resource,
+    language: updatedLanguage !== 'plaintext' ? updatedLanguage : document.language,
+    savedRevision: targetSavedRevision,
+    isDirty: isStillDirty,
     lastSavedTimestamp: Date.now(),
   };
 };
