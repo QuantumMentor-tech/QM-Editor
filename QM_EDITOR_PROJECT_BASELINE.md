@@ -8,104 +8,99 @@
 
 ## 1. PROJECT IDENTITY & CATEGORY
 - **Project Name:** QM Editor
-- **Current State:** Uninitialized / Initializing Project Baseline (Nearly Empty Workspace)
-- **Primary Asset Discovered:** `QM Editor Logo.png` (419,989 bytes)
+- **Current State:** Architecture & Scaffolding Baseline Established (Phase 01 Step 02 Complete)
+- **Primary Branding Asset:** `QM Editor Logo.png` (419,989 bytes)
 - **Target Application Category:** Desktop / Web Modern Editor Application
 
 ---
 
 ## 2. CURRENT PROJECT TYPE & REPOSITORY STRUCTURE
-- **Repository Initialization:** Not yet initialized as a Git repository (`.git` directory absent).
+- **Repository Initialization:** Git repository initialized on branch `main`.
 - **Directory Structure:**
   ```
   QM Editor (working)/
-  └── QM Editor Logo.png
+  ├── docs/architecture/
+  │   ├── QM_EDITOR_ARCHITECTURE.md
+  │   └── DECISIONS.md
+  ├── src/
+  │   ├── app/
+  │   ├── components/
+  │   ├── core/
+  │   ├── services/
+  │   ├── state/
+  │   ├── types/
+  │   ├── App.tsx
+  │   ├── main.tsx
+  │   └── index.css
+  ├── QM Editor Logo.png
+  ├── index.html
+  ├── package.json
+  ├── tsconfig.json
+  └── vite.config.ts
   ```
-- **Source Code Presence:** None (Application source code has not yet been initialized).
-- **Configuration Files:** None (`package.json`, `tsconfig.json`, `vite.config.ts`, etc., are currently absent).
+- **Configuration Files:** `package.json`, `tsconfig.json`, `vite.config.ts`, `index.html`.
 
 ---
 
 ## 3. CURRENT TECHNOLOGY STACK
+- **Language:** TypeScript 5.7.3
+- **Framework:** React 19.0.0 & React DOM 19.0.0
+- **Bundler & Dev Server:** Vite 6.1.0
+- **Icons:** Lucide React 0.475.0
+- **Styling:** Vanilla CSS + Theme Variables (`src/index.css`)
 - **Node.js Environment:** Node v26.8.2
 - **Package Manager:** npm v11.19.1 (`cmd /c npm`)
-- **Version Control Tooling:** Git v2.55.0.windows.5 available on host system
-- **Framework & Libraries:** Not yet established (Pending Phase 1 Step 2 initialization).
+- **Version Control:** Git v2.55.0.windows.5
 
 ---
 
 ## 4. APPLICATION ENTRY POINTS & EXECUTION FLOW
-- **Entry Points:** None currently existing.
-- **Execution Flow:** N/A until project initialization in Step 2.
+- **HTML Entry Point:** [`index.html`](file:///d:/App%20Winrar%20Files/QM%20Editor%20%28working%29/index.html)
+- **TSX Entry Point:** [`src/main.tsx`](file:///d:/App%20Winrar%20Files/QM%20Editor%20%28working%29/src/main.tsx)
+- **Root Shell Component:** [`src/App.tsx`](file:///d:/App%20Winrar%20Files/QM%20Editor%20%28working%29/src/App.tsx)
+- **Execution Flow:** `index.html` → `src/main.tsx` → `src/App.tsx` (Renders Header with `QM Editor Logo.png`, Sidebar Explorer, Tab Bar, Text Editor, and Status Bar).
 
 ---
 
 ## 5. ARCHITECTURE OVERVIEW & MAP
-- **Target Architecture:** Pending architecture proposal in Step 2 (e.g., Electron / Vite / React / TypeScript or Web App Stack).
-- **Current Architecture Map:**
-  ```
-  [User] --> [Workspace Asset: QM Editor Logo.png]
-  ```
-- **State & Storage Architecture:** Uninitialized.
+- **Documented Architecture:** See [`docs/architecture/QM_EDITOR_ARCHITECTURE.md`](file:///d:/App%20Winrar%20Files/QM%20Editor%20%28working%29/docs/architecture/QM_EDITOR_ARCHITECTURE.md)
+- **Architecture Decision Records:** See [`docs/architecture/DECISIONS.md`](file:///d:/App%20Winrar%20Files/QM%20Editor%20%28working%29/docs/architecture/DECISIONS.md)
 
 ---
 
 ## 6. UI/UX BASELINE AUDIT
-- **Visual System:** Branding asset `QM Editor Logo.png` present in root. UI design tokens, CSS frameworks, layout shell, fonts, and icon sets are not yet initialized.
-- **Interaction & Component System:** None existing.
-- **Responsive & Shell Behavior:** Uninitialized.
+- **Visual System:** Custom CSS variables in `src/index.css` supporting dark mode (`#0f172a`) and light mode (`#ffffff`).
+- **Branding Header:** `QM Editor Logo.png` rendered at header navbar.
+- **Layout Shell:** Header bar (48px), Sidebar (260px), Central tabbed editor area, Status bar (28px).
 
 ---
 
 ## 7. EXISTING FUNCTIONALITY INVENTORY
 | Feature Name | Status | Location | Notes | Preserve Required |
 |---|---|---|---|---|
-| Project Branding Logo | Present | `./QM Editor Logo.png` | 419KB PNG logo asset | Yes |
-
-*No application code, components, services, or APIs exist yet.*
+| Project Branding Logo | Integrated | [`QM Editor Logo.png`](file:///d:/App%20Winrar%20Files/QM%20Editor%20%28working%29/QM%20Editor%20Logo.png) | 419KB PNG logo in header shell | Yes |
+| Application Layout Shell | Initialized | [`src/App.tsx`](file:///d:/App%20Winrar%20Files/QM%20Editor%20%28working%29/src/App.tsx) | Header, Explorer, Editor, Status bar | Yes |
+| Theme Switcher | Initialized | [`src/App.tsx`](file:///d:/App%20Winrar%20Files/QM%20Editor%20%28working%29/src/App.tsx) | Toggle dark / light themes | Yes |
+| Document Model & Unsaved State | Initialized | [`src/types/index.ts`](file:///d:/App%20Winrar%20Files/QM%20Editor%20%28working%29/src/types/index.ts) | Document state model, `isDirty` flag | Yes |
 
 ---
 
 ## 8. BUILD, RUN, TEST & TOOLING AUDIT
-- **Development Command:** N/A (No package.json)
-- **Build Command:** N/A
-- **Test Command:** N/A
-- **Type-Check Command:** N/A
-- **Lint Command:** N/A
-- **Verification Execution:** System tools verified (Node v26.8.2, npm v11.19.1, Git v2.55.0).
+- **Development Command:** `cmd /c npm run dev`
+- **Build Command:** `cmd /c npm run build` (Verified: 0 errors)
+- **Type-Check Command:** `cmd /c npm run type-check` (Verified: 0 errors)
+- **Lint Command:** `cmd /c npm run lint` (Verified: 0 errors)
 
 ---
 
-## 9. SECURITY & DEPENDENCY AUDIT
-- **Committed Secrets / Keys:** None detected.
-- **IPC / Native Execution Vulnerabilities:** N/A (No source code).
-- **Dependencies:** 0 dependencies installed.
+## 9. PROTECTED AREAS & ASSETS
+- `./QM Editor Logo.png`
+- `docs/architecture/QM_EDITOR_ARCHITECTURE.md`
+- `docs/architecture/DECISIONS.md`
+- `QM_EDITOR_PROJECT_BASELINE.md`
+- `QM_EDITOR_AGENT_RULES.md`
 
 ---
 
-## 10. PROTECTED AREAS & ASSETS
-- `./QM Editor Logo.png` must be preserved as the official project branding asset.
-- Baseline documentation files (`QM_EDITOR_PROJECT_BASELINE.md` and `QM_EDITOR_AGENT_RULES.md`) must be maintained.
-
----
-
-## 11. CHANGE-SAFETY RULES & RECOMMENDED ARCHITECTURAL DIRECTION
-1. **Repository Setup:** Initialize Git tracking to record all upcoming baseline commits.
-2. **Framework Selection (Step 2):** Select modern desktop/web editor stack (e.g. Vite + React + TypeScript + Vanilla CSS/Tailwind or Electron depending on desktop requirement).
-3. **Asset Preservation:** Preserve `QM Editor Logo.png` as the application logo asset across all UI themes.
-4. **Tooling Command Standard:** Execute npm commands on Windows host via `cmd /c npm` to bypass execution policy restrictions.
-
----
-
-## 12. RISKS & ASSUMPTIONS
-- **Risk:** PowerShell execution policy restricts direct invocation of `npm.ps1`.
-  *Mitigation:* Use `cmd /c npm` or `cmd /c npx` for all Node/npm package operations.
-- **Assumption:** Step 2 will define and execute the formal project scaffold and tech stack initialization after alignment.
-
----
-
-## 13. ITEMS REQUIRING FUTURE IMPLEMENTATION (PHASE 01 STEP 02+)
-- Project scaffolding (`package.json`, TypeScript, bundler/framework config).
-- Application shell & layout setup with `QM Editor Logo.png` incorporated.
-- Core editor component integration.
-- State management and file persistence engine.
+## 10. RISKS & ASSUMPTIONS
+- **PowerShell Execution Policy:** Must run Node/npm scripts via `cmd /c npm` or `cmd /c npx`.
