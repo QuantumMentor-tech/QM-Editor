@@ -30,6 +30,22 @@ export interface DocumentModel {
   lastSavedTimestamp: number;
 }
 
+export interface SearchQuery {
+  text: string;
+  caseSensitive: boolean;
+  wholeWord: boolean;
+  regex: boolean;
+}
+
+export interface SearchMatch {
+  id: string;
+  from: number;
+  to: number;
+  line: number;
+  column: number;
+  preview: string;
+}
+
 export interface TreeNodeModel {
   id: string;
   name: string;

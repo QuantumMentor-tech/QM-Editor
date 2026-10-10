@@ -68,6 +68,76 @@ export const defaultCommands: Command[] = [
     },
   },
   {
+    id: 'search.open',
+    label: 'Find in Active Document',
+    category: 'editor',
+    shortcut: 'Mod+F',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && ctx.searchActions?.openSearch),
+    execute: (ctx) => {
+      if (ctx.searchActions?.openSearch) {
+        ctx.searchActions.openSearch(false);
+      }
+    },
+  },
+  {
+    id: 'search.replace',
+    label: 'Replace in Active Document',
+    category: 'editor',
+    shortcut: 'Mod+H',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && ctx.searchActions?.openSearch),
+    execute: (ctx) => {
+      if (ctx.searchActions?.openSearch) {
+        ctx.searchActions.openSearch(true);
+      }
+    },
+  },
+  {
+    id: 'search.findNext',
+    label: 'Find Next Match',
+    category: 'editor',
+    shortcut: 'F3',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && ctx.searchActions?.findNext),
+    execute: (ctx) => {
+      if (ctx.searchActions?.findNext) {
+        ctx.searchActions.findNext();
+      }
+    },
+  },
+  {
+    id: 'search.findPrevious',
+    label: 'Find Previous Match',
+    category: 'editor',
+    shortcut: 'Shift+F3',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && ctx.searchActions?.findPrevious),
+    execute: (ctx) => {
+      if (ctx.searchActions?.findPrevious) {
+        ctx.searchActions.findPrevious();
+      }
+    },
+  },
+  {
+    id: 'search.replaceAll',
+    label: 'Replace All in Active Document',
+    category: 'editor',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && !ctx.activeDoc.fileResource?.readOnly && ctx.searchActions?.replaceAll),
+    execute: (ctx) => {
+      if (ctx.searchActions?.replaceAll) {
+        ctx.searchActions.replaceAll();
+      }
+    },
+  },
+  {
+    id: 'search.close',
+    label: 'Close Search Panel',
+    category: 'editor',
+    canExecute: (ctx) => Boolean(ctx.searchActions?.closeSearch),
+    execute: (ctx) => {
+      if (ctx.searchActions?.closeSearch) {
+        ctx.searchActions.closeSearch();
+      }
+    },
+  },
+  {
     id: 'file.save',
     label: 'Save Active Document',
     category: 'document',

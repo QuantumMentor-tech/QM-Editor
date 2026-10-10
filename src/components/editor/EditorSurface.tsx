@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { DocumentModel } from '../../types';
 import { CodeMirrorEditorAdapter } from './EditorAdapter';
 import { useShellState } from '../../state/ShellContext';
+import { useSearch } from '../../state/SearchContext';
+import { SearchPanel } from '../search/SearchPanel';
 
 export interface EditorSurfaceProps {
   document: DocumentModel;
@@ -12,6 +14,7 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
   const containerRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<CodeMirrorEditorAdapter | null>(null);
   const { state: shellState } = useShellState();
+  const { matches, currentMatchIndex, currentMatch, isOpen } = useSearch();
 
   const docIdRef = useRef<string>(document.id);
   docIdRef.current = document.id;
@@ -28,6 +31,7 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
 
     adapter.mount(containerRef.current, document.content, {
       theme: shellState.theme,
+      readOnly: Boolean(document.fileResource?.readOnly),
       onChange: (newContent) => {
         if (onContentChangeRef.current) {
           onContentChangeRef.current(newContent);
@@ -56,15 +60,48 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
     }
   }, [shellState.theme]);
 
+  // Sync read-only state
+  useEffect(() => {
+    if (adapterRef.current) {
+      adapterRef.current.setReadOnly(Boolean(document.fileResource?.readOnly));
+    }
+  }, [document.fileResource?.readOnly]);
+
+  // Highlight search matches in editor view
+  useEffect(() => {
+    if (!adapterRef.current) return;
+    if (isOpen && matches.length > 0) {
+      adapterRef.current.highlightMatches(
+        matches.map((m) => ({ from: m.from, to: m.to })),
+        currentMatchIndex
+      );
+    } else {
+      adapterRef.current.clearSearchHighlights();
+    }
+  }, [matches, currentMatchIndex, isOpen]);
+
+  // Scroll to active search match and select text
+  useEffect(() => {
+    if (adapterRef.current && isOpen && currentMatch) {
+      adapterRef.current.selectAndRevealRange(currentMatch.from, currentMatch.to);
+    }
+  }, [currentMatch, isOpen]);
+
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        backgroundColor: 'var(--bg-editor)',
-        overflow: 'hidden',
-      }}
-    />
+    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+      {/* Search & Replace Panel Overlay */}
+      <SearchPanel />
+
+      {/* CodeMirror Surface Container */}
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'var(--bg-editor)',
+          overflow: 'hidden',
+        }}
+      />
+    </div>
   );
 };

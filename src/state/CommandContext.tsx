@@ -6,6 +6,7 @@ import { ShortcutManager } from '../core/commands/ShortcutManager';
 import { useShellState } from './ShellContext';
 import { useWorkspace } from './WorkspaceContext';
 import { useExplorer } from './ExplorerContext';
+import { useSearch } from './SearchContext';
 
 export interface CommandContextApi {
   registry: CommandRegistry;
@@ -26,6 +27,7 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { state: shellState, toggleSidebar, togglePanel, toggleTheme } = useShellState();
   const { activeDoc, saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc } = useWorkspace();
   const { openWorkspace, refreshWorkspace, revealActiveFile } = useExplorer();
+  const { openSearch, closeSearch, findNext, findPrevious, replaceCurrent, replaceAll } = useSearch();
 
   const commandContextRef = useRef<CommandContextType>({
     activeDoc,
@@ -33,6 +35,7 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
     workspaceActions: { saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc },
     shellActions: { toggleSidebar, togglePanel, toggleTheme },
     explorerActions: { openWorkspace, refreshWorkspace, revealActiveFile },
+    searchActions: { openSearch, closeSearch, findNext, findPrevious, replaceCurrent, replaceAll },
   });
 
   // Keep commandContextRef in sync on re-renders
@@ -42,6 +45,7 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
     workspaceActions: { saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc },
     shellActions: { toggleSidebar, togglePanel, toggleTheme },
     explorerActions: { openWorkspace, refreshWorkspace, revealActiveFile },
+    searchActions: { openSearch, closeSearch, findNext, findPrevious, replaceCurrent, replaceAll },
   };
 
   const executeCommand = async (id: string): Promise<void> => {

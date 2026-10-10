@@ -1,8 +1,50 @@
-import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightActiveLine } from '@codemirror/view';
-import { EditorState, Compartment } from '@codemirror/state';
+import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightActiveLine, Decoration, DecorationSet } from '@codemirror/view';
+import { EditorState, Compartment, StateEffect, StateField, EditorSelection } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { ThemeMode } from '../../types';
+
+export interface MatchRange {
+  from: number;
+  to: number;
+}
+
+export const setSearchMatchesEffect = StateEffect.define<{
+  matches: MatchRange[];
+  currentIndex: number;
+}>();
+
+export const clearSearchMatchesEffect = StateEffect.define<void>();
+
+const searchMatchDecoration = Decoration.mark({ class: 'cm-search-match' });
+const currentMatchDecoration = Decoration.mark({ class: 'cm-search-match-current' });
+
+export const searchHighlightField = StateField.define<DecorationSet>({
+  create() {
+    return Decoration.none;
+  },
+  update(decorations, tr) {
+    decorations = decorations.map(tr.changes);
+    for (const effect of tr.effects) {
+      if (effect.is(setSearchMatchesEffect)) {
+        const { matches, currentIndex } = effect.value;
+        const decos: any[] = [];
+        matches.forEach((m, idx) => {
+          if (m.from < m.to) {
+            const isCurrent = idx === currentIndex;
+            const deco = isCurrent ? currentMatchDecoration : searchMatchDecoration;
+            decos.push(deco.range(m.from, m.to));
+          }
+        });
+        return Decoration.set(decos, true);
+      } else if (effect.is(clearSearchMatchesEffect)) {
+        return Decoration.none;
+      }
+    }
+    return decorations;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 export interface EditorAdapterOptions {
   readOnly?: boolean;
@@ -16,6 +58,10 @@ export interface EditorAdapterInterface {
   getContent(): string;
   setReadOnly(readOnly: boolean): void;
   setTheme(theme: ThemeMode): void;
+  selectAndRevealRange(from: number, to: number): void;
+  highlightMatches(matches: MatchRange[], currentIndex: number): void;
+  clearSearchHighlights(): void;
+  getSelectedText(): string;
   focus(): void;
   dispose(): void;
 }
@@ -50,6 +96,7 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
         keymap.of([...defaultKeymap, ...historyKeymap]),
         readOnlyExtension,
         themeExtension,
+        searchHighlightField,
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !this.isUpdatingProgrammatically) {
             const newContent = update.state.doc.toString();
@@ -69,6 +116,15 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
           },
           '.cm-content': {
             padding: '16px 0',
+          },
+          '.cm-search-match': {
+            backgroundColor: 'rgba(234, 179, 8, 0.35)',
+            borderRadius: '2px',
+          },
+          '.cm-search-match-current': {
+            backgroundColor: 'rgba(59, 130, 246, 0.6)',
+            color: '#ffffff',
+            borderRadius: '2px',
           },
         }),
       ],
@@ -113,6 +169,39 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
     this.view.dispatch({
       effects: this.themeCompartment.reconfigure(theme === 'light' ? [] : oneDark),
     });
+  }
+
+  public selectAndRevealRange(from: number, to: number): void {
+    if (!this.view) return;
+    const maxLen = this.view.state.doc.length;
+    const safeFrom = Math.max(0, Math.min(from, maxLen));
+    const safeTo = Math.max(safeFrom, Math.min(to, maxLen));
+
+    this.view.dispatch({
+      selection: EditorSelection.single(safeFrom, safeTo),
+      scrollIntoView: true,
+    });
+  }
+
+  public highlightMatches(matches: MatchRange[], currentIndex: number): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: setSearchMatchesEffect.of({ matches, currentIndex }),
+    });
+  }
+
+  public clearSearchHighlights(): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: clearSearchMatchesEffect.of(),
+    });
+  }
+
+  public getSelectedText(): string {
+    if (!this.view) return '';
+    const mainSel = this.view.state.selection.main;
+    if (mainSel.empty) return '';
+    return this.view.state.sliceDoc(mainSel.from, mainSel.to);
   }
 
   public focus(): void {

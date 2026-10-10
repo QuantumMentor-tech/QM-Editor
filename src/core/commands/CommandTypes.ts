@@ -23,6 +23,14 @@ export interface CommandContext {
     refreshWorkspace: () => void | Promise<void>;
     revealActiveFile: () => void;
   };
+  searchActions?: {
+    openSearch: (withReplace?: boolean) => void;
+    closeSearch: () => void;
+    findNext: () => void;
+    findPrevious: () => void;
+    replaceCurrent: () => void;
+    replaceAll: () => void;
+  };
 }
 
 export interface Command {

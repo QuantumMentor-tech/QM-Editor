@@ -10,6 +10,7 @@ import { StatusBar } from './components/layout/StatusBar';
 import { OverlayLayer } from './components/layout/OverlayLayer';
 
 import { ExplorerProvider } from './state/ExplorerContext';
+import { SearchProvider } from './state/SearchContext';
 
 const AppContent: React.FC = () => {
   return (
@@ -43,9 +44,11 @@ export const App: React.FC = () => {
     <ShellProvider>
       <WorkspaceProvider>
         <ExplorerProvider>
-          <CommandProvider>
-            <AppContent />
-          </CommandProvider>
+          <SearchProvider>
+            <CommandProvider>
+              <AppContent />
+            </CommandProvider>
+          </SearchProvider>
         </ExplorerProvider>
       </WorkspaceProvider>
     </ShellProvider>
