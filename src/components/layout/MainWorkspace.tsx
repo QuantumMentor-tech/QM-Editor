@@ -1,5 +1,6 @@
 import React from 'react';
 import { useWorkspace } from '../../state/WorkspaceContext';
+import { EditorSurface } from '../editor/EditorSurface';
 import { FileText, X, Plus } from 'lucide-react';
 import { IconButton } from '../common/IconButton';
 
@@ -100,23 +101,10 @@ export const MainWorkspace: React.FC = () => {
       {/* Editor Surface Area */}
       <div style={{ flex: 1, position: 'relative' }}>
         {activeDoc ? (
-          <textarea
-            value={activeDoc.content}
-            onChange={(e) => updateText(activeDoc.id, e.target.value)}
-            placeholder="Write content here..."
-            style={{
-              width: '100%',
-              height: '100%',
-              backgroundColor: 'transparent',
-              color: 'var(--text-primary)',
-              border: 'none',
-              outline: 'none',
-              padding: '16px',
-              fontFamily: 'var(--font-code)',
-              fontSize: '0.95rem',
-              lineHeight: '1.6',
-              resize: 'none',
-            }}
+          <EditorSurface
+            key={activeDoc.id}
+            document={activeDoc}
+            onContentChange={(newContent) => updateText(activeDoc.id, newContent)}
           />
         ) : (
           <div

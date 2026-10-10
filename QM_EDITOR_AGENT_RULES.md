@@ -36,3 +36,9 @@ Always check `QM_EDITOR_PROJECT_BASELINE.md` for designated protected files and 
 
 ## RULE 11 — STOP AT STEP BOUNDARIES
 Conclude execution when the assigned step's acceptance criteria are met. Do not proceed into subsequent steps or phases automatically.
+
+## RULE 12 — EDITOR ENGINE ABSTRACTION DISCIPLINE
+Never bypass `EditorAdapter` (`src/components/editor/EditorAdapter.ts`) to make direct third-party engine calls from arbitrary UI components. Maintain clean separation between `DocumentModel` state and editor view state.
+
+## RULE 13 — NO UNSOLICITED AI IN EDITOR CORE
+Keep all future AI capabilities behind explicit `AIService` boundaries. Never inject model calls or LLM API keys directly into the core editor engine or component layout layers.
