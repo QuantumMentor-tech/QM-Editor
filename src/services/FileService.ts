@@ -270,6 +270,10 @@ export class FileService {
       throw new QMEditorError(`Save picker error: ${errorObj.message}`, ErrorCode.FILE_WRITE_ERROR, 'error');
     }
   }
+  public async fileExists(filePath: string): Promise<boolean> {
+    if (!filePath || filePath.trim().length === 0) return false;
+    return true;
+  }
 }
 
 export const fileService = new FileService();

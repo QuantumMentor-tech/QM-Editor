@@ -5,6 +5,8 @@ import { useShellState } from '../../state/ShellContext';
 import { useSearch } from '../../state/SearchContext';
 import { SearchPanel } from '../search/SearchPanel';
 
+import { useNavigation } from '../../state/NavigationContext';
+
 export interface EditorSurfaceProps {
   document: DocumentModel;
   onContentChange: (newContent: string) => void;
@@ -15,9 +17,16 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
   const adapterRef = useRef<CodeMirrorEditorAdapter | null>(null);
   const { state: shellState } = useShellState();
   const { matches, currentMatchIndex, currentMatch, isOpen } = useSearch();
+  const { setCurrentPos, pushLocation } = useNavigation();
 
   const docIdRef = useRef<string>(document.id);
   docIdRef.current = document.id;
+
+  const docFilePathRef = useRef<string | undefined>(document.filePath);
+  docFilePathRef.current = document.filePath;
+
+  const docTitleRef = useRef<string>(document.title);
+  docTitleRef.current = document.title;
 
   const onContentChangeRef = useRef(onContentChange);
   onContentChangeRef.current = onContentChange;
@@ -32,10 +41,21 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
     adapter.mount(containerRef.current, document.content, {
       theme: shellState.theme,
       readOnly: Boolean(document.fileResource?.readOnly),
+      settings: shellState.editorSettings,
       onChange: (newContent) => {
         if (onContentChangeRef.current) {
           onContentChangeRef.current(newContent);
         }
+      },
+      onCursorActivity: (pos) => {
+        setCurrentPos(pos);
+        pushLocation({
+          documentId: docIdRef.current,
+          filePath: docFilePathRef.current,
+          documentTitle: docTitleRef.current,
+          line: pos.line,
+          column: pos.column,
+        });
       },
     });
 
@@ -44,7 +64,7 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
       adapterRef.current = null;
     };
     // Re-mount only if active document ID changes
-  }, [document.id]);
+  }, [document.id, pushLocation, setCurrentPos]);
 
   // Sync content programmatically when active document content changes from outside
   useEffect(() => {
@@ -60,12 +80,33 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
     }
   }, [shellState.theme]);
 
+  // Sync editor presentation settings live
+  useEffect(() => {
+    if (adapterRef.current) {
+      adapterRef.current.setSettings(shellState.editorSettings);
+    }
+  }, [shellState.editorSettings]);
+
   // Sync read-only state
   useEffect(() => {
     if (adapterRef.current) {
       adapterRef.current.setReadOnly(Boolean(document.fileResource?.readOnly));
     }
   }, [document.fileResource?.readOnly]);
+
+  // Handle custom Go To Line events
+  useEffect(() => {
+    const handleGoToLineEvent = (e: CustomEvent<{ line: number; column?: number }>) => {
+      if (adapterRef.current && e.detail) {
+        adapterRef.current.goToLine(e.detail.line, e.detail.column || 1);
+      }
+    };
+
+    window.addEventListener('qm:editor:gotoline' as any, handleGoToLineEvent as any);
+    return () => {
+      window.removeEventListener('qm:editor:gotoline' as any, handleGoToLineEvent as any);
+    };
+  }, []);
 
   // Highlight search matches in editor view
   useEffect(() => {

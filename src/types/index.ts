@@ -6,6 +6,24 @@ export type ThemeMode = 'dark' | 'light';
 export type ShellView = 'editor' | 'settings' | 'extensions';
 export type PanelView = 'output' | 'problems' | 'terminal';
 
+export type WordWrapMode = 'off' | 'on';
+export type WhitespaceMode = 'none' | 'all' | 'trailing';
+
+export interface EditorSettings {
+  fontSize: number;
+  fontFamily: string;
+  lineNumbers: boolean;
+  wordWrap: WordWrapMode;
+  tabSize: number;
+  insertSpaces: boolean;
+  bracketMatching: boolean;
+  autoClosingBrackets: boolean;
+  highlightActiveLine: boolean;
+  whitespace: WhitespaceMode;
+  folding: boolean;
+  minimap: boolean;
+}
+
 export interface FileResource {
   uri: string;
   name: string;
@@ -28,6 +46,14 @@ export interface DocumentModel {
   savedRevision: number;
   isDirty: boolean;
   lastSavedTimestamp: number;
+}
+
+export interface LanguageDefinition {
+  id: string;
+  displayName: string;
+  aliases: string[];
+  extensions: string[];
+  filenames?: string[];
 }
 
 export interface SearchQuery {
@@ -82,6 +108,7 @@ export interface UserPreferences {
   sidebarOpen: boolean;
   sidebarWidth: number;
   activePanelView: PanelView;
+  editor: EditorSettings;
 }
 
 export interface ShellState {
@@ -94,4 +121,35 @@ export interface ShellState {
   dialogOpen: boolean;
   dialogTitle: string;
   dialogContent: React.ReactNode | null;
+  editorSettings: EditorSettings;
+}
+
+export interface EditorLocation {
+  documentId: string;
+  filePath?: string;
+  documentTitle?: string;
+  line: number;
+  column: number;
+  timestamp?: number;
+}
+
+export interface NavigationHistoryState {
+  backStack: EditorLocation[];
+  forwardStack: EditorLocation[];
+  currentLocation: EditorLocation | null;
+}
+
+export interface RecentDocument {
+  uri: string;
+  name: string;
+  lastOpened: number;
+  exists?: boolean;
+}
+
+export interface ApplicationSession {
+  version: number;
+  openFilePaths: string[];
+  activeFilePath?: string;
+  lastLocations: Record<string, { line: number; column: number }>;
+  timestamp: number;
 }

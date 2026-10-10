@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useRef } from 'react';
-import { DocumentModel } from '../types';
+import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+import { DocumentModel, FileResource } from '../types';
 import { createNewDocument } from '../core/document';
 import {
   DocumentRegistryState,
@@ -11,12 +11,15 @@ import {
   saveDocumentState,
 } from '../core/documentRegistry';
 import { fileService } from '../services/FileService';
+import { RecentDocumentsService } from '../services/RecentDocumentsService';
+import { SessionService } from '../services/SessionService';
 import { logger } from '../utils/logger';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export interface WorkspaceContextType {
   registry: DocumentRegistryState;
+  openDocs: DocumentModel[];
   activeDoc: DocumentModel | null;
   dirtyCloseTarget: DocumentModel | null;
   saveStatus: SaveStatus;
@@ -24,9 +27,11 @@ export interface WorkspaceContextType {
   openDoc: (doc: DocumentModel) => void;
   createDoc: (title?: string, content?: string, language?: string) => void;
   openFile: () => Promise<void>;
+  openFilePath?: (filePath: string) => Promise<void>;
   activateDoc: (documentId: string) => void;
   closeDoc: (documentId: string, force?: boolean) => void;
   updateText: (documentId: string, content: string) => void;
+  changeDocLanguage: (documentId: string, languageId: string) => void;
   saveDoc: (documentId: string) => Promise<void>;
   saveDocAs: (documentId: string) => Promise<void>;
   cancelDirtyClose: () => void;
@@ -37,7 +42,7 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 
 const initialWelcomeDoc = createNewDocument(
   'Welcome.md',
-  '# Welcome to QM Editor\n\nQM Editor is a high-performance document and code editor.\n\n- Phase 01 Step 09: File System Service, Document I/O & Safe Save Architecture Established.\n- Safe atomic file writing, revision snapshot algorithm preventing save races, and path normalization active.\n\nUse Ctrl+N for New Document, Ctrl+O to Open, and Ctrl+S to Save.',
+  '# Welcome to QM Editor\n\nQM Editor is a high-performance document and code editor.\n\n- Phase 01 Step 14: Advanced Editor Navigation, Location History & Session Continuity Foundation Established.\n- Bounded back/forward location history, Go-to-Line/Column modal, recent files tracking, and safe session restoration active.\n\nUse Ctrl+N for New Document, Ctrl+O to Open, Ctrl+G for Go to Line, and Ctrl+Shift+R for Recent Files.',
   'markdown'
 );
 
@@ -51,7 +56,20 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [lastErrorMessage, setLastErrorMessage] = useState<string | null>(null);
 
   const untitledCountRef = useRef(1);
+  const openDocs = registry.openDocIds
+    .map((id) => registry.documents[id])
+    .filter((doc): doc is DocumentModel => Boolean(doc));
   const activeDoc = registry.activeDocId ? registry.documents[registry.activeDocId] || null : null;
+
+  // Sync session metadata automatically when open documents change
+  useEffect(() => {
+    const openPaths = openDocs
+      .map((d) => d.filePath || d.fileResource?.uri)
+      .filter((p): p is string => Boolean(p));
+
+    const activePath = activeDoc?.filePath || activeDoc?.fileResource?.uri;
+    SessionService.saveSession(openPaths, activePath);
+  }, [openDocs, activeDoc]);
 
   const openDoc = (doc: DocumentModel) => {
     setRegistry((prev) => registerOpenDocument(prev, doc));
@@ -64,6 +82,50 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
     const newDoc = createNewDocument(docTitle, content, language);
     setRegistry((prev) => registerOpenDocument(prev, newDoc));
+  };
+
+  const openFilePath = async (filePath: string) => {
+    try {
+      setLastErrorMessage(null);
+      const normalizedPath = filePath.trim();
+
+      // If already open, activate existing tab
+      const existing = openDocs.find(
+        (d) => d.filePath === normalizedPath || d.fileResource?.uri === normalizedPath
+      );
+      if (existing) {
+        setRegistry((prev) => activateDocument(prev, existing.id));
+        RecentDocumentsService.addRecentDocument(normalizedPath, existing.title);
+        return;
+      }
+
+      const filename = normalizedPath.replace(/\\/g, '/').split('/').pop() || normalizedPath;
+      const parts = filename.split('.');
+      const extension = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
+
+      const resource: FileResource = {
+        uri: normalizedPath,
+        name: filename,
+        extension,
+        readOnly: false,
+        exists: true,
+      };
+
+      const newDoc = createNewDocument(
+        filename,
+        '',
+        'plaintext',
+        normalizedPath,
+        resource
+      );
+
+      setRegistry((prev) => registerOpenDocument(prev, newDoc));
+      RecentDocumentsService.addRecentDocument(normalizedPath, filename);
+    } catch (err: unknown) {
+      const msg = (err as Error).message || 'Failed to open file from path.';
+      logger.error('Workspace openFilePath error', { filePath, error: msg });
+      setLastErrorMessage(msg);
+    }
   };
 
   const openFile = async () => {
@@ -81,6 +143,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       );
 
       setRegistry((prev) => registerOpenDocument(prev, newDoc));
+      RecentDocumentsService.addRecentDocument(result.resource.uri, result.resource.name);
     } catch (err: unknown) {
       const msg = (err as Error).message || 'Failed to open file.';
       logger.error('Workspace openFile error', { error: msg });
@@ -108,6 +171,23 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setRegistry((prev) => updateDocumentText(prev, documentId, content));
   };
 
+  const changeDocLanguage = (documentId: string, languageId: string) => {
+    setRegistry((prev) => {
+      const doc = prev.documents[documentId];
+      if (!doc) return prev;
+      return {
+        ...prev,
+        documents: {
+          ...prev.documents,
+          [documentId]: {
+            ...doc,
+            language: languageId,
+          },
+        },
+      };
+    });
+  };
+
   const saveDocAs = async (documentId: string) => {
     const doc = registry.documents[documentId];
     if (!doc) return;
@@ -131,6 +211,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         saveDocumentState(prev, documentId, targetRevision, updatedResource)
       );
 
+      RecentDocumentsService.addRecentDocument(updatedResource.uri, updatedResource.name);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err: unknown) {
@@ -163,6 +244,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         saveDocumentState(prev, documentId, targetRevision, updatedResource)
       );
 
+      RecentDocumentsService.addRecentDocument(updatedResource.uri, updatedResource.name);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err: unknown) {
@@ -188,6 +270,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     <WorkspaceContext.Provider
       value={{
         registry,
+        openDocs,
         activeDoc,
         dirtyCloseTarget,
         saveStatus,
@@ -195,9 +278,11 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         openDoc,
         createDoc,
         openFile,
+        openFilePath,
         activateDoc,
         closeDoc,
         updateText,
+        changeDocLanguage,
         saveDoc,
         saveDocAs,
         cancelDirtyClose,

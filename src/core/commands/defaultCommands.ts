@@ -214,4 +214,121 @@ export const defaultCommands: Command[] = [
       ctx.shellActions.toggleTheme();
     },
   },
+  {
+    id: 'editor.zoomIn',
+    label: 'Zoom In (Increase Font Size)',
+    category: 'editor',
+    shortcut: 'Mod+=',
+    canExecute: (ctx) => Boolean(ctx.shellActions.zoomIn),
+    execute: (ctx) => {
+      if (ctx.shellActions.zoomIn) ctx.shellActions.zoomIn();
+    },
+  },
+  {
+    id: 'editor.zoomOut',
+    label: 'Zoom Out (Decrease Font Size)',
+    category: 'editor',
+    shortcut: 'Mod+-',
+    canExecute: (ctx) => Boolean(ctx.shellActions.zoomOut),
+    execute: (ctx) => {
+      if (ctx.shellActions.zoomOut) ctx.shellActions.zoomOut();
+    },
+  },
+  {
+    id: 'editor.zoomReset',
+    label: 'Reset Zoom (Default Font Size)',
+    category: 'editor',
+    shortcut: 'Mod+0',
+    canExecute: (ctx) => Boolean(ctx.shellActions.zoomReset),
+    execute: (ctx) => {
+      if (ctx.shellActions.zoomReset) ctx.shellActions.zoomReset();
+    },
+  },
+  {
+    id: 'editor.toggleWordWrap',
+    label: 'Toggle Word Wrap',
+    category: 'editor',
+    shortcut: 'Alt+Z',
+    canExecute: (ctx) => Boolean(ctx.shellActions.toggleWordWrap),
+    execute: (ctx) => {
+      if (ctx.shellActions.toggleWordWrap) ctx.shellActions.toggleWordWrap();
+    },
+  },
+  {
+    id: 'editor.toggleLineNumbers',
+    label: 'Toggle Line Numbers',
+    category: 'editor',
+    canExecute: (ctx) => Boolean(ctx.shellActions.toggleLineNumbers),
+    execute: (ctx) => {
+      if (ctx.shellActions.toggleLineNumbers) ctx.shellActions.toggleLineNumbers();
+    },
+  },
+  {
+    id: 'editor.toggleWhitespace',
+    label: 'Toggle Whitespace Visibility',
+    category: 'editor',
+    canExecute: (ctx) => Boolean(ctx.shellActions.toggleWhitespace),
+    execute: (ctx) => {
+      if (ctx.shellActions.toggleWhitespace) ctx.shellActions.toggleWhitespace();
+    },
+  },
+  {
+    id: 'editor.toggleFolding',
+    label: 'Toggle Code Folding Gutter',
+    category: 'editor',
+    canExecute: (ctx) => Boolean(ctx.shellActions.toggleFolding),
+    execute: (ctx) => {
+      if (ctx.shellActions.toggleFolding) ctx.shellActions.toggleFolding();
+    },
+  },
+  {
+    id: 'workbench.action.openSettings',
+    label: 'Preferences: Open Editor Settings',
+    category: 'shell',
+    shortcut: 'Mod+,',
+    canExecute: (ctx) => Boolean(ctx.shellActions.openSettings),
+    execute: (ctx) => {
+      if (ctx.shellActions.openSettings) ctx.shellActions.openSettings();
+    },
+  },
+  {
+    id: 'navigation.goToLine',
+    label: 'Go to Line / Column...',
+    category: 'editor',
+    shortcut: 'Mod+G',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && ctx.navigationActions?.goToLine),
+    execute: (ctx) => {
+      if (ctx.navigationActions?.goToLine) ctx.navigationActions.goToLine();
+    },
+  },
+  {
+    id: 'navigation.back',
+    label: 'Navigate Back',
+    category: 'editor',
+    shortcut: 'Alt+Left',
+    canExecute: (ctx) => Boolean(ctx.navigationActions?.canNavigateBack),
+    execute: (ctx) => {
+      if (ctx.navigationActions?.navigateBack) ctx.navigationActions.navigateBack();
+    },
+  },
+  {
+    id: 'navigation.forward',
+    label: 'Navigate Forward',
+    category: 'editor',
+    shortcut: 'Alt+Right',
+    canExecute: (ctx) => Boolean(ctx.navigationActions?.canNavigateForward),
+    execute: (ctx) => {
+      if (ctx.navigationActions?.navigateForward) ctx.navigationActions.navigateForward();
+    },
+  },
+  {
+    id: 'file.openRecent',
+    label: 'Open Recent File...',
+    category: 'document',
+    shortcut: 'Mod+Shift+R',
+    canExecute: (ctx) => Boolean(ctx.navigationActions?.openRecent),
+    execute: (ctx) => {
+      if (ctx.navigationActions?.openRecent) ctx.navigationActions.openRecent();
+    },
+  },
 ];

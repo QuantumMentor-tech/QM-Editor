@@ -7,6 +7,11 @@ import { useShellState } from './ShellContext';
 import { useWorkspace } from './WorkspaceContext';
 import { useExplorer } from './ExplorerContext';
 import { useSearch } from './SearchContext';
+import { useNavigation } from './NavigationContext';
+import { GoToLineModal } from '../components/navigation/GoToLineModal';
+import { RecentDocumentsModal } from '../components/navigation/RecentDocumentsModal';
+import { EditorSettingsModal } from '../components/settings/EditorSettingsModal';
+import { fileService } from '../services/FileService';
 
 export interface CommandContextApi {
   registry: CommandRegistry;
@@ -24,18 +29,120 @@ defaultCommands.forEach((cmd) => {
 });
 
 export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { state: shellState, toggleSidebar, togglePanel, toggleTheme } = useShellState();
-  const { activeDoc, saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc } = useWorkspace();
+  const {
+    state: shellState,
+    toggleSidebar,
+    togglePanel,
+    toggleTheme,
+    zoomIn,
+    zoomOut,
+    zoomReset,
+    toggleWordWrap,
+    toggleLineNumbers,
+    toggleWhitespace,
+    toggleFolding,
+    openDialog,
+  } = useShellState();
+  const { activeDoc, openDocs, saveDoc, saveDocAs, createDoc, openFile, openFilePath, closeDoc, activateDoc } = useWorkspace();
   const { openWorkspace, refreshWorkspace, revealActiveFile } = useExplorer();
   const { openSearch, closeSearch, findNext, findPrevious, replaceCurrent, replaceAll } = useSearch();
+  const { navigateBack, navigateForward, canNavigateBack, canNavigateForward, currentPos } = useNavigation();
+
+  const openSettings = () => {
+    openDialog('Editor Preferences & Settings', <EditorSettingsModal />);
+  };
+
+  const handleGoToLineModal = () => {
+    if (!activeDoc) return;
+    const maxLines = activeDoc.content.split('\n').length;
+    openDialog(
+      'Go to Line',
+      <GoToLineModal
+        currentLine={currentPos.line}
+        maxLines={maxLines}
+        onGoToLine={(line, col) => {
+          window.dispatchEvent(
+            new CustomEvent('qm:editor:gotoline', { detail: { line, column: col } })
+          );
+        }}
+      />
+    );
+  };
+
+  const handleOpenRecentModal = () => {
+    openDialog(
+      'Recently Opened Files',
+      <RecentDocumentsModal
+        onOpenRecent={async (uri) => {
+          if (openFilePath) {
+            await openFilePath(uri);
+          }
+        }}
+      />
+    );
+  };
+
+  const handleNavigateBack = async () => {
+    const loc = navigateBack();
+    if (!loc) return;
+    const targetDoc = openDocs.find((d) => d.id === loc.documentId || (d.filePath && d.filePath === loc.filePath));
+    if (targetDoc) {
+      activateDoc(targetDoc.id);
+      window.dispatchEvent(new CustomEvent('qm:editor:gotoline', { detail: { line: loc.line, column: loc.column } }));
+    } else if (loc.filePath && openFilePath) {
+      const exists = await fileService.fileExists(loc.filePath);
+      if (exists) {
+        await openFilePath(loc.filePath);
+        window.dispatchEvent(new CustomEvent('qm:editor:gotoline', { detail: { line: loc.line, column: loc.column } }));
+      }
+    }
+  };
+
+  const handleNavigateForward = async () => {
+    const loc = navigateForward();
+    if (!loc) return;
+    const targetDoc = openDocs.find((d) => d.id === loc.documentId || (d.filePath && d.filePath === loc.filePath));
+    if (targetDoc) {
+      activateDoc(targetDoc.id);
+      window.dispatchEvent(new CustomEvent('qm:editor:gotoline', { detail: { line: loc.line, column: loc.column } }));
+    } else if (loc.filePath && openFilePath) {
+      const exists = await fileService.fileExists(loc.filePath);
+      if (exists) {
+        await openFilePath(loc.filePath);
+        window.dispatchEvent(new CustomEvent('qm:editor:gotoline', { detail: { line: loc.line, column: loc.column } }));
+      }
+    }
+  };
+
+  const navigationActions = {
+    goToLine: handleGoToLineModal,
+    navigateBack: handleNavigateBack,
+    navigateForward: handleNavigateForward,
+    openRecent: handleOpenRecentModal,
+    canNavigateBack,
+    canNavigateForward,
+  };
 
   const commandContextRef = useRef<CommandContextType>({
     activeDoc,
     shellState,
     workspaceActions: { saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc },
-    shellActions: { toggleSidebar, togglePanel, toggleTheme },
+    shellActions: {
+      toggleSidebar,
+      togglePanel,
+      toggleTheme,
+      zoomIn,
+      zoomOut,
+      zoomReset,
+      toggleWordWrap,
+      toggleLineNumbers,
+      toggleWhitespace,
+      toggleFolding,
+      openSettings,
+    },
     explorerActions: { openWorkspace, refreshWorkspace, revealActiveFile },
     searchActions: { openSearch, closeSearch, findNext, findPrevious, replaceCurrent, replaceAll },
+    navigationActions,
   });
 
   // Keep commandContextRef in sync on re-renders
@@ -43,9 +150,22 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
     activeDoc,
     shellState,
     workspaceActions: { saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc },
-    shellActions: { toggleSidebar, togglePanel, toggleTheme },
+    shellActions: {
+      toggleSidebar,
+      togglePanel,
+      toggleTheme,
+      zoomIn,
+      zoomOut,
+      zoomReset,
+      toggleWordWrap,
+      toggleLineNumbers,
+      toggleWhitespace,
+      toggleFolding,
+      openSettings,
+    },
     explorerActions: { openWorkspace, refreshWorkspace, revealActiveFile },
     searchActions: { openSearch, closeSearch, findNext, findPrevious, replaceCurrent, replaceAll },
+    navigationActions,
   };
 
   const executeCommand = async (id: string): Promise<void> => {

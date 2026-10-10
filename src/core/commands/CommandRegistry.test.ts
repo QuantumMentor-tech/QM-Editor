@@ -4,6 +4,8 @@ import { defaultCommands } from './defaultCommands';
 import { CommandContext, Command } from './CommandTypes';
 import { QMEditorError } from '../../utils/errors';
 
+import { DEFAULT_EDITOR_SETTINGS } from '../../services/PreferencesService';
+
 describe('CommandRegistry Core Engine', () => {
   let registry: CommandRegistry;
   let mockContext: CommandContext;
@@ -31,6 +33,7 @@ describe('CommandRegistry Core Engine', () => {
         dialogOpen: false,
         dialogTitle: '',
         dialogContent: null,
+        editorSettings: DEFAULT_EDITOR_SETTINGS,
       },
       workspaceActions: {
         saveDoc: () => {},

@@ -5,7 +5,7 @@ import { useCommand } from '../../state/CommandContext';
 import { Button } from '../common/Button';
 import { IconButton } from '../common/IconButton';
 import { Badge } from '../common/Badge';
-import { Save, Sun, Moon, Terminal, Plus, FolderOpen } from 'lucide-react';
+import { Save, Sun, Moon, Terminal, Plus, FolderOpen, Settings, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const { state } = useShellState();
@@ -13,6 +13,8 @@ export const Header: React.FC = () => {
   const { executeCommand, canExecuteCommand } = useCommand();
 
   const canSave = canExecuteCommand('file.save');
+  const canBack = canExecuteCommand('navigation.back');
+  const canForward = canExecuteCommand('navigation.forward');
 
   return (
     <header
@@ -40,6 +42,27 @@ export const Header: React.FC = () => {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', borderRight: '1px solid var(--border-color)', paddingRight: '8px' }}>
+          <IconButton
+            onClick={() => executeCommand('navigation.back')}
+            disabled={!canBack}
+            aria-label="Navigate Back (Alt+Left)"
+            icon={<ChevronLeft size={18} />}
+          />
+          <IconButton
+            onClick={() => executeCommand('navigation.forward')}
+            disabled={!canForward}
+            aria-label="Navigate Forward (Alt+Right)"
+            icon={<ChevronRight size={18} />}
+          />
+        </div>
+
+        <IconButton
+          onClick={() => executeCommand('file.openRecent')}
+          aria-label="Recently Opened Files (Ctrl+Shift+R)"
+          icon={<Clock size={18} />}
+        />
+
         <Button
           onClick={() => executeCommand('file.new')}
           variant="secondary"
@@ -64,6 +87,12 @@ export const Header: React.FC = () => {
         >
           Save (Ctrl+S)
         </Button>
+
+        <IconButton
+          onClick={() => executeCommand('workbench.action.openSettings')}
+          aria-label="Editor Settings"
+          icon={<Settings size={18} />}
+        />
 
         <IconButton
           onClick={() => executeCommand('shell.togglePanel')}

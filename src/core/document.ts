@@ -1,37 +1,9 @@
 import { DocumentModel, FileResource } from '../types';
 import { QMEditorError, ErrorCode } from '../utils/errors';
+import { globalLanguageRegistry } from './languageRegistry';
 
 export const detectLanguageFromExtension = (filename: string): string => {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  switch (ext) {
-    case 'ts':
-    case 'tsx':
-      return 'typescript';
-    case 'js':
-    case 'jsx':
-      return 'javascript';
-    case 'json':
-      return 'json';
-    case 'md':
-    case 'markdown':
-      return 'markdown';
-    case 'html':
-    case 'htm':
-      return 'html';
-    case 'css':
-      return 'css';
-    case 'py':
-      return 'python';
-    case 'cpp':
-    case 'c':
-    case 'h':
-    case 'hpp':
-      return 'cpp';
-    case 'rs':
-      return 'rust';
-    default:
-      return 'plaintext';
-  }
+  return globalLanguageRegistry.resolveLanguage(filename).id;
 };
 
 export const extractFileName = (pathOrUri: string): string => {
@@ -50,7 +22,7 @@ export const createNewDocument = (
     throw new QMEditorError('Document title cannot be empty', ErrorCode.DOCUMENT_VALIDATION_ERROR, 'warning');
   }
 
-  const detectedLanguage = language === 'plaintext' ? detectLanguageFromExtension(title) : language;
+  const resolved = globalLanguageRegistry.resolveLanguage(filePath || title, language !== 'plaintext' ? language : undefined);
 
   return {
     id: `doc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -58,7 +30,7 @@ export const createNewDocument = (
     content,
     filePath,
     fileResource,
-    language: detectedLanguage,
+    language: resolved.id,
     contentRevision: 0,
     savedRevision: 0,
     isDirty: false,
@@ -97,14 +69,14 @@ export const markDocumentSaved = (
   const resource = newFileResource || document.fileResource;
   const path = newFilePath || resource?.uri || document.filePath;
   const updatedTitle = resource?.name || (newFilePath ? extractFileName(newFilePath) : document.title);
-  const updatedLanguage = detectLanguageFromExtension(updatedTitle);
+  const resolved = globalLanguageRegistry.resolveLanguage(path || updatedTitle);
 
   return {
     ...document,
     title: updatedTitle,
     filePath: path,
     fileResource: resource,
-    language: updatedLanguage !== 'plaintext' ? updatedLanguage : document.language,
+    language: resolved.id !== 'plaintext' ? resolved.id : document.language,
     savedRevision: targetSavedRevision,
     isDirty: isStillDirty,
     lastSavedTimestamp: Date.now(),

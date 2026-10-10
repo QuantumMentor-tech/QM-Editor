@@ -17,6 +17,14 @@ export interface CommandContext {
     toggleSidebar: () => void;
     togglePanel: () => void;
     toggleTheme: () => void;
+    zoomIn?: () => void;
+    zoomOut?: () => void;
+    zoomReset?: () => void;
+    toggleWordWrap?: () => void;
+    toggleLineNumbers?: () => void;
+    toggleWhitespace?: () => void;
+    toggleFolding?: () => void;
+    openSettings?: () => void;
   };
   explorerActions?: {
     openWorkspace: () => void | Promise<void>;
@@ -30,6 +38,14 @@ export interface CommandContext {
     findPrevious: () => void;
     replaceCurrent: () => void;
     replaceAll: () => void;
+  };
+  navigationActions?: {
+    goToLine: () => void;
+    navigateBack: () => void;
+    navigateForward: () => void;
+    openRecent: () => void;
+    canNavigateBack: boolean;
+    canNavigateForward: boolean;
   };
 }
 
