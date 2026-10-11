@@ -3,9 +3,9 @@
  */
 
 export type ThemeMode = 'dark' | 'light';
-export type ShellView = 'editor' | 'settings' | 'extensions';
+export type ShellView = 'editor' | 'settings' | 'extensions' | 'welcome';
 export type SidebarView = 'explorer' | 'scm';
-export type PanelView = 'output' | 'problems' | 'terminal';
+export type PanelView = 'output' | 'problems' | 'terminal' | 'tasks';
 
 export type WordWrapMode = 'off' | 'on';
 export type WhitespaceMode = 'none' | 'all' | 'trailing';
@@ -104,11 +104,15 @@ export interface TabModel {
   isDirty: boolean;
 }
 
+export type UiDensity = 'comfortable' | 'compact';
+
 export interface UserPreferences {
   theme: ThemeMode;
   sidebarOpen: boolean;
   sidebarWidth: number;
   activePanelView: PanelView;
+  panelHeight?: number;
+  uiDensity?: UiDensity;
   editor: EditorSettings;
 }
 
@@ -118,6 +122,8 @@ export interface ShellState {
   sidebarWidth: number;
   sidebarView: SidebarView;
   panelOpen: boolean;
+  panelHeight?: number;
+  uiDensity?: UiDensity;
   activePanelView: PanelView;
   activeView: ShellView;
   dialogOpen: boolean;

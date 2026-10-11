@@ -14,6 +14,7 @@ import { fileService } from '../services/FileService';
 import { RecentDocumentsService } from '../services/RecentDocumentsService';
 import { SessionService } from '../services/SessionService';
 import { logger } from '../utils/logger';
+import { globalFeedbackService } from '../core/feedback/FeedbackService';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -125,6 +126,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const msg = (err as Error).message || 'Failed to open file from path.';
       logger.error('Workspace openFilePath error', { filePath, error: msg });
       setLastErrorMessage(msg);
+      globalFeedbackService.showError(`Could not open file: ${msg}`, {
+        source: 'workspace.open',
+        scope: 'workspace',
+      });
     }
   };
 
@@ -148,6 +153,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const msg = (err as Error).message || 'Failed to open file.';
       logger.error('Workspace openFile error', { error: msg });
       setLastErrorMessage(msg);
+      globalFeedbackService.showError(`Could not open file: ${msg}`, {
+        source: 'workspace.open',
+        scope: 'workspace',
+      });
     }
   };
 
@@ -214,11 +223,23 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       RecentDocumentsService.addRecentDocument(updatedResource.uri, updatedResource.name);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
+      globalFeedbackService.showSuccess(`Saved ${updatedResource.name}`, {
+        source: 'document.save',
+        scope: 'document',
+        scopeId: documentId,
+        duration: 'brief',
+      });
     } catch (err: unknown) {
       const msg = (err as Error).message || 'Failed to save document.';
       logger.error('Workspace saveDocAs error', { error: msg });
       setLastErrorMessage(msg);
       setSaveStatus('error');
+      globalFeedbackService.showError(`Could not save ${doc.title}: ${msg}`, {
+        source: 'document.save',
+        scope: 'document',
+        scopeId: documentId,
+        actions: [{ id: 'retry', label: 'Retry', isPrimary: true, run: () => saveDocAs(documentId) }],
+      });
     }
   };
 
@@ -247,11 +268,23 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       RecentDocumentsService.addRecentDocument(updatedResource.uri, updatedResource.name);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
+      globalFeedbackService.showSuccess(`Saved ${updatedResource.name}`, {
+        source: 'document.save',
+        scope: 'document',
+        scopeId: documentId,
+        duration: 'brief',
+      });
     } catch (err: unknown) {
       const msg = (err as Error).message || 'Failed to save document.';
       logger.error('Workspace saveDoc error', { error: msg });
       setLastErrorMessage(msg);
       setSaveStatus('error');
+      globalFeedbackService.showError(`Could not save ${doc.title}: ${msg}`, {
+        source: 'document.save',
+        scope: 'document',
+        scopeId: documentId,
+        actions: [{ id: 'retry', label: 'Retry', isPrimary: true, run: () => saveDoc(documentId) }],
+      });
     }
   };
 

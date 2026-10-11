@@ -1,6 +1,6 @@
 import { DocumentModel, ShellState } from '../../types';
 
-export type CommandCategory = 'editor' | 'document' | 'shell' | 'workspace' | 'sourcecontrol';
+export type CommandCategory = 'editor' | 'document' | 'shell' | 'workspace' | 'sourcecontrol' | 'terminal' | 'tasks' | 'help';
 
 export interface CommandContext {
   activeDoc: DocumentModel | null;
@@ -26,11 +26,17 @@ export interface CommandContext {
     toggleFolding?: () => void;
     openSettings?: () => void;
     openCommandPalette?: () => void;
+    resetLayout?: () => void;
+    toggleUiDensity?: () => void;
+    openWelcome?: () => void;
+    closeWelcome?: () => void;
   };
   explorerActions?: {
     openWorkspace: () => void | Promise<void>;
     refreshWorkspace: () => void | Promise<void>;
     revealActiveFile: () => void;
+    copyPath?: (uri: string) => void;
+    copyRelativePath?: (uri: string) => void;
   };
   searchActions?: {
     openSearch: (withReplace?: boolean) => void;
@@ -56,6 +62,47 @@ export interface CommandContext {
     refresh: () => void | Promise<void>;
     openDiff?: () => void | Promise<void>;
   };
+  terminalActions?: {
+    newTerminal: () => void;
+    togglePanel: () => void;
+    clear: () => void;
+    kill: () => void;
+    next: () => void;
+    previous: () => void;
+    copy?: () => void;
+    paste?: () => void;
+  };
+  taskActions?: {
+    runTask: (taskId?: string) => void | Promise<void>;
+    runBuild: () => void | Promise<void>;
+    runTest: () => void | Promise<void>;
+    cancel: () => void | Promise<void>;
+    showTasks: () => void;
+    showProblems: () => void;
+  };
+  editorActions?: {
+    undo?: () => void;
+    redo?: () => void;
+    selectAll?: () => void;
+    cut?: () => void;
+    copy?: () => void;
+    paste?: () => void;
+  };
+  tabActions?: {
+    closeOthers?: (id: string) => void;
+    closeSaved?: () => void;
+    closeToTheRight?: (id: string) => void;
+    copyPath?: (id: string) => void;
+  };
+  clipboardActions?: {
+    writeText?: (text: string) => Promise<void>;
+    readText?: () => Promise<string>;
+  };
+  problemActions?: {
+    copyMessage?: (message: string) => void;
+    goToSource?: (file: string, line: number, column?: number) => void;
+  };
+  contextualTarget?: any;
 }
 
 export interface Command {

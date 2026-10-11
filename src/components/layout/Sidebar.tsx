@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { PanelLeftClose, PanelLeft, Plus, FolderTree, GitBranch } from 'lucide-react';
 import { IconButton } from '../common/IconButton';
 import { useShellState } from '../../state/ShellContext';
@@ -7,8 +7,27 @@ import { FileExplorer } from '../explorer/FileExplorer';
 import { SourceControlPanel } from '../source-control/SourceControlPanel';
 
 export const Sidebar: React.FC = () => {
-  const { state, setSidebarView } = useShellState();
+  const { state, setSidebarView, setSidebarWidth } = useShellState();
   const { executeCommand } = useCommand();
+  const isDraggingRef = useRef(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      setSidebarWidth(e.clientX);
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [setSidebarWidth]);
 
   if (!state.sidebarOpen) {
     return (
@@ -51,6 +70,7 @@ export const Sidebar: React.FC = () => {
 
   return (
     <aside
+      aria-label="Sidebar"
       style={{
         width: `${state.sidebarWidth}px`,
         backgroundColor: 'var(--bg-sidebar)',
@@ -59,8 +79,62 @@ export const Sidebar: React.FC = () => {
         flexDirection: 'column',
         height: '100%',
         overflow: 'hidden',
+        position: 'relative',
       }}
     >
+      {/* Draggable & Keyboard-Accessible Vertical Resizer (Step 25, Rule 8, 21, 22) */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize Primary Sidebar (Arrow keys to adjust, double click to reset)"
+        aria-valuenow={state.sidebarWidth}
+        aria-valuemin={160}
+        aria-valuemax={500}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            setSidebarWidth(state.sidebarWidth + 20);
+          } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            setSidebarWidth(state.sidebarWidth - 20);
+          } else if (e.key === 'Home') {
+            e.preventDefault();
+            setSidebarWidth(160);
+          } else if (e.key === 'End') {
+            e.preventDefault();
+            setSidebarWidth(500);
+          }
+        }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          isDraggingRef.current = true;
+        }}
+        onDoubleClick={() => {
+          setSidebarWidth(260);
+        }}
+        title="Drag or use Arrow Left/Right to resize sidebar. Double-click to reset."
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: '5px',
+          cursor: 'col-resize',
+          zIndex: 10,
+          backgroundColor: 'transparent',
+          transition: 'background-color 0.15s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = 'var(--accent-primary)';
+        }}
+        onMouseLeave={(e) => {
+          if (!isDraggingRef.current) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
+        }}
+      />
+
       <div
         style={{
           padding: '4px 8px',
@@ -71,8 +145,11 @@ export const Sidebar: React.FC = () => {
           backgroundColor: 'var(--bg-header)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div role="tablist" aria-label="Sidebar Views" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <button
+            role="tab"
+            aria-selected={isExplorer}
+            aria-label="File Explorer"
             onClick={() => setSidebarView('explorer')}
             style={{
               background: 'none',
@@ -93,6 +170,9 @@ export const Sidebar: React.FC = () => {
           </button>
 
           <button
+            role="tab"
+            aria-selected={!isExplorer}
+            aria-label="Source Control"
             onClick={() => setSidebarView('scm')}
             style={{
               background: 'none',

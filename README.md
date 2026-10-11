@@ -73,9 +73,82 @@
 - **Status Bar Branch Indicator:** Live branch indicator button in status bar footer showing active branch (e.g. `main` or `HEAD (a1b2c3d)`).
 - **Read-Only Diff Inspection:** Line-by-line text comparison viewer (`SourceControlDiffModal.tsx`) with binary file guard protection.
 
+### 💻 11. Integrated Terminal & Safe Process Execution Foundation (Step 19)
+- **Terminal Process Subsystem:** Controlled user-facing process architecture (`TerminalService.ts`, `TerminalSession.ts`, `PtyAdapter.ts`, `ShellDetector.ts`) with OS shell auto-detection (PowerShell/CMD on Windows, Zsh/Bash on macOS/Linux).
+- **Interactive Terminal Surface (`TerminalScreen.tsx`):** Real-time streaming output, ANSI color sequence formatting, interactive prompt, command line history navigation (Arrow Up/Down), and Ctrl+C interrupt signals.
+- **Multi-Session Management (`TerminalView.tsx`):** Tabbed multi-terminal interface with session creation (`Ctrl+Shift+\``), switching, tab renaming, clear buffer, and process termination (`Trash2`).
+- **Secondary Panel Integration (`SecondaryPanel.tsx`):** Integrated bottom panel with draggable resizer handle, session counter badge, and toggle shortcut (`Ctrl+\``).
+- **Strict Process Isolation:** User-only interactive boundary preventing silent internal execution from AI, Git, or plugin modules.
+
+### 12. Tasks, Build, Run & Problem Matcher Foundation (Step 20)
+- **Task Runner Subsystem (`TaskService.ts`):** Project-scoped development task execution supporting `build`, `test`, `run`, `lint`, and custom tasks.
+- **Problem Matcher Subsystem (`ProblemParser.ts`):** High-performance output stream parsers extracting structured diagnostics from compilers and linters (`$tsc`, `$eslint`, `$general`, `$dotnet`).
+- **Interactive Problems Panel (`ProblemsPanel.tsx`):** Normalized diagnostics view with severity counters and one-click jump-to-source file, line, and column navigation.
+- **Dependency & Cycle Resolver (`TaskValidator.ts`):** Deterministic prerequisite execution with DFS cycle detection (`A -> B -> A`).
+- **Workspace Trust Boundary:** Explicit execution guard blocking unconfirmed processes in untrusted workspaces.
+- **Build Shortcut & Command Integration:** Global build shortcut `Ctrl+Shift+B` (`Mod+Shift+B`) and Command Palette task triggers.
+
+### 13. Unified Settings, Preferences & Configuration System (Step 21)
+- **Centralized Settings Registry (`SettingsRegistry.ts`):** Typed definitions, bounds, descriptions, and defaults across Appearance, Editor, Terminal, Source Control, Tasks, Files, Search, and Accessibility.
+- **Unified Settings Service (`SettingsService.ts`):** Single source of truth resolving effective values with strict scope precedence (`Workspace` -> `User` -> `Default`).
+- **Unified Settings Modal (`UnifiedSettingsModal.tsx`):** Category sidebar, real-time ranked search, typed UI controls (switches, steppers, dropdowns), inline resets, and JSON import/export.
+- **Backward-Compatible Migration:** Safe, automatic migration from legacy Step 13 user preferences to the unified dot-notation schema.
+
+### 14. Unified Menus, Toolbars, Context Menus & Command Surfaces (Step 22)
+- **Single Command Architecture (`CommandSurfaceRegistry.ts`):** Central command surface registry connecting all visible UI actions directly to the centralized `CommandRegistry` (`globalCommandRegistry`). Zero duplicate execution logic.
+- **Application Menu Bar (`MenuBar.tsx`):** Desktop top-level menu bar featuring 9 standard categories: `File`, `Edit`, `Selection`, `View`, `Go`, `Terminal`, `Tasks`, `Source Control`, and `Help`. Accessible via keyboard (`Alt`, Arrow keys, `Enter`, `Escape`), active toggle checkmarks, and formatted platform shortcuts.
+- **Primary Unified Toolbar (`Toolbar.tsx`):** High-frequency curated actions (`New`, `Open`, `Save`, `Undo`, `Redo`, `Find in Files`, `Quick Open`, `Command Palette`, `Settings`) with tooltips displaying action and shortcut.
+- **Responsive Progressive Reduction:** Dynamic width tracking folding secondary toolbar actions into a clean `OverflowMenu` button on compact viewports.
+- **Context Menus (`ContextMenu.tsx`):** Floating, viewport-bounded contextual menus with keyboard navigation, edge-clamping, focus restoration, and intelligent separator grouping.
+- **Unified Surface Integrations:** Context menus attached to File Explorer (`Open`, `Copy Path`, `Reveal`, `Refresh`), Editor surface (`Undo`, `Redo`, `Cut`, `Copy`, `Paste`, `Select All`, `Find`), Document tabs (`Close`, `Close Others`, `Close Saved`, `Copy Path`), Terminal (`Copy`, `Paste`, `Clear`, `Kill`), Tasks (`Run`, `Cancel`, `Show Output`), and Problems (`Go to Source`, `Copy Message`).
+- **Stale Context Protection:** 4-step revalidation before command execution ensuring target and availability validity before dispatch.
+
+### 15. Unified Notifications, Dialogs, Confirmations & Progress System (Step 23)
+- **Centralized Feedback Service (`FeedbackService.ts`):** Single point of interaction for user feedback with severity separation (`success`, `info`, `warning`, `error`), presentation separation (`toast`, `banner`, `dialog`, `confirmation`, `progress`, `inline`), queue management, and automated deduplication window (3,000ms).
+- **Transient Toasts (`ToastHost.tsx`):** Non-blocking bottom-right notifications with automatic semantic dismissal (`brief`: 2.5s, `normal`: 5s, `persistent`), repeat count badge pills (`×N`), command action buttons, expandable sanitized technical details, and one-click copy.
+- **Persistent Banners (`BannerHost.tsx`):** Spans below the Header for sustained conditions (workspace trust, missing Git runtime) with safe dismiss and custom action triggers.
+- **Safe Destructive Confirmations (`ConfirmDialog.tsx`):** Typed modal gate returning `'confirmed' | 'cancelled' | 'dismissed'`. Defaults focus to the Cancel button to prevent accidental execution, enforces focus trap, and dismisses on Escape or backdrop click.
+- **Floating Progress System (`ProgressHost.tsx`):** Bottom-left progress tracker supporting determinate quantitative progress (with percentage bars) and indeterminate pulsing activity, alongside cancellation tokens.
+- **Inline Validation (`InlineFeedback.tsx`):** Scoped input validation component with accessible ARIA live regions (`assertive` for errors, `polite` for warnings).
+- **Security & Privacy Sanitization:** Automatic redaction of credentials, bearer tokens, passwords, and private keys from all technical details prior to presentation.
+
+### 16. Accessibility, Focus Management & Keyboard Navigation Foundation (Step 24)
+- **Centralized Focus Manager (`FocusManager.ts`):** Deterministic focus lifecycle management with hierarchical focus scopes (`application`, `dialog`, `menu`, `contextmenu`, `commandpalette`, `quickopen`, `settings`, `terminal`, `editor`, `explorer`, `problems`), safe LIFO restoration on overlay exit, and fallback handling for unmounted targets.
+- **Modal Containment & Focus Trapping (`FocusTrap.tsx`):** Centralized focus trap wrapper containing Tab and Shift+Tab cycling within active dialogs while enabling clean Escape key dismissal.
+- **Input Field Protection (Rule 43):** Protected native text editing (`Mod+A`, `Mod+C`, `Mod+V`, `Mod+X`, `Mod+Z`, `Mod+Y`) within `<input>` and `<textarea>` elements, preventing buffer commands from hijacking search queries or settings entry.
+- **Focus Region Workbench Commands:** Registered keyboard commands for jumping between primary shell regions (`workbench.action.focusExplorer`, `workbench.action.focusEditor`, `workbench.action.focusTerminal`, `workbench.action.focusProblems`, `workbench.action.focusSettings`).
+- **Semantic ARIA Composite Widgets:** Document tabs (`role="tablist"` / `role="tab"`) with roving tabindex and ArrowLeft/Right switching, File Explorer tree (`role="tree"` / `role="treeitem"` / `aria-level`), Problems list (`role="list"` / `role="listitem"`), and accessible panel resizer (`role="separator"` with keyboard ArrowUp/Down adjustment).
+- **Visual Focus & Theming Accessibility:** High-contrast `:focus-visible` styling (`2px solid var(--border-focus)` with 2px offset), reduced-motion awareness (`@media (prefers-reduced-motion: reduce)`), and high-contrast mode compatibility (`@media (forced-colors: active)`).
+- **ARIA Live Announcements (`LiveRegion.tsx`):** Polite and assertive screen-reader announcement regions for status updates, save results, and diagnostic alerts.
+
+### 17. Responsive Workspace, Adaptive Layout, Panel Resizing & UI Density (Step 25)
+- **Centralized Layout State & Protection (`LayoutService.ts`, `LayoutConstraints.ts`):** Centralized layout service enforcing safe boundaries across window sizes and display scaling. Enforces strict editor area protection (min editor width: 300px, min editor height: 150px) preventing sidebars or secondary panels from occluding the central code editor.
+- **Bidirectional Accessible Panel Resizing:** Draggable splitters for both Primary Sidebar (min: 160px, max: 500px, default: 260px) and Secondary Bottom Panel (min: 120px, max: 600px, default: 240px) with double-click reset, keyboard adjustment (Arrow keys, Home, End), and full ARIA separator semantics.
+- **UI Density System (`comfortable` vs `compact`):** System-wide density tokens adjusting header height (`48px` vs `40px`), status bar height (`28px` vs `24px`), tab height (`38px` vs `30px`), and tree item density without sacrificing touch/pointer hit target accessibility or typography legibility.
+- **Document Tab Overflow & Active Tab Reveal:** Responsive tab strip container with smooth horizontal scrolling and automated `scrollIntoView` for active documents, paired with text truncation preserving dirty state markers.
+- **Responsive Status Bar Adaptation:** Automatic progressive reduction hiding secondary status metrics (`.status-item-secondary`) on viewports `<= 800px` to prevent horizontal overlap.
+- **Standardized Layering (Z-Index Tokens):** Eliminated arbitrary z-index values in favor of standardized semantic design tokens (`--z-base` through `--z-tooltip`).
+- **Layout State Persistence & Factory Reset:** Bounded localStorage persistence (`qm_editor_layout_state_v1`) with versioning, strict numeric clamping, and a dedicated layout reset command (`workbench.action.resetLayout`).
+
+### 18. Professional UI Component Library, Interaction States & Design System (Step 26)
+- **Standardized Component Library (`src/components/common/index.ts`):** Complete collection of typed, theme-aware, accessible UI building blocks eliminating fragmented component implementations across editor surfaces.
+- **Action & Form Primitives:** `Button` (5 variants, 3 sizes, loading state with `aria-busy`), `IconButton` (accessible label requirement, toggle support), `Input` (clearable, leading/trailing icon slots, validation variants), `Textarea` (resize controls), `Select` (typed options), `Checkbox` (indeterminate state support), `Toggle` (`role="switch"` semantics), `RadioGroup` (roving arrow navigation), and `Slider` (accessible numeric range).
+- **Composite Form Field Architecture (`FormField.tsx`):** Automated accessibility binding linking label, description, and error alert to control inputs via deterministic `htmlFor`, `id`, `aria-describedby`, and `aria-invalid`.
+- **Containers, Navigation & Panels:** `Card` (with composable Header, Content, Footer), `Panel` (with composable Header, Content, Footer), `Divider` (with horizontal/vertical and text label separation), `List` & `ListItem` (composable leading icon, title, secondary description, trailing action slots).
+- **Overlay & Floating Primitives:** `Tooltip` (delay trigger, `role="tooltip"`), `Popover` (escape dismissal, outside-click close, non-modal region), and `Dialog` (`FocusTrap` containment, `var(--z-modal)` layering).
+- **Feedback & State Indicators:** `Badge` (extended semantic variants), `StatusIndicator` (non-color redundant symbols, `role="status"`), `Spinner` & `Skeleton` (animated loading states), `EmptyState` (customizable zero-data placeholders), and `ErrorState` (expandable technical details, retry actions).
+- **Standard Interaction States:** Seamless support for default, hover, focus-visible, active/pressed, selected, disabled, loading, error, and warning states across Dark and Light themes.
+
+### 19. Welcome Experience, Workspace Entry, Empty States & Start Center (Step 27)
+- **Start Center Surface (`StartCenter.tsx`):** Dedicated entry surface when no workspace or documents are open, or when invoked via `Help: Welcome (Start Center)`. Cleanly separated from the Document Model (never an editable tab, no buffer pollution, zero false dirty flags).
+- **Canonical Action Delegation:** Direct routing to canonical commands (`workspace.open`, `file.new`, `file.open`, `workbench.action.showCommands`, `workbench.action.openSettings`, `workbench.action.resetLayout`).
+- **Recent Workspaces Service (`RecentWorkspacesService.ts`):** Bounded history (10 items), MRU ordering, normalized path deduplication, persistent local storage with memory fallback, and safe removal (never touches physical files).
+- **Unified Empty-State System:** Normalized `EmptyState` component adoption across File Explorer, Editor Canvas, Source Control, Tasks, Problems, Terminal, and Search.
+- **Accurate State Communication:** Strict preservation of semantic ground truth (`Empty ≠ Loading`, `Empty ≠ Error`, `Empty ≠ Unavailable`, `No Results ≠ Error`).
+
 ---
 
-## 📋 Phase 01 Progress Roadmap
+## 📋 Progress Roadmap
 
 - [x] **Step 1:** Complete Project Audit & Technical Baseline
 - [x] **Step 2:** Technical Architecture & Development Foundation
@@ -95,8 +168,15 @@
 - [x] **Step 16:** Quick Open, Workspace File Search & Fast Resource Navigation
 - [x] **Step 17:** Workspace Search, Find in Files & Safe Multi-File Replace
 - [x] **Step 18:** Git Integration & Source Control Foundation
-
----
+- [x] **Step 19:** Integrated Terminal & Safe Process Execution Foundation
+- [x] **Step 20:** Tasks, Build, Run & Problem Matcher Foundation
+- [x] **Step 21:** Unified Settings, Preferences & Configuration System
+- [x] **Step 22:** Unified Menus, Toolbars, Context Menus & Command Surfaces
+- [x] **Step 23:** Unified Notifications, Dialogs, Confirmations, Progress & Feedback System
+- [x] **Step 24:** Accessibility, Focus Management, Keyboard Navigation & Interaction Foundation
+- [x] **Step 25:** Responsive Workspace, Adaptive Layout, Panel Resizing & UI Density System
+- [x] **Step 26:** Professional UI Component Library, Interaction States & Design System Completion
+- [x] **Step 27:** Welcome Experience, Workspace Entry, Empty States & Start Center
 
 ## 🛠️ Technology Stack
 

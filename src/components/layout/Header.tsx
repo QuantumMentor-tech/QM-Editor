@@ -1,18 +1,15 @@
 import React from 'react';
 import { useShellState } from '../../state/ShellContext';
-import { useWorkspace } from '../../state/WorkspaceContext';
 import { useCommand } from '../../state/CommandContext';
-import { Button } from '../common/Button';
 import { IconButton } from '../common/IconButton';
-import { Badge } from '../common/Badge';
-import { Save, Sun, Moon, Terminal, Plus, FolderOpen, Settings, ChevronLeft, ChevronRight, Clock, Search } from 'lucide-react';
+import { MenuBar } from '../commands/MenuBar';
+import { Toolbar } from '../commands/Toolbar';
+import { Sun, Moon, Terminal, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const { state } = useShellState();
-  const { activeDoc } = useWorkspace();
   const { executeCommand, canExecuteCommand } = useCommand();
 
-  const canSave = canExecuteCommand('file.save');
   const canBack = canExecuteCommand('navigation.back');
   const canForward = canExecuteCommand('navigation.forward');
 
@@ -25,45 +22,62 @@ export const Header: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 16px',
+        padding: '0 12px',
         zIndex: 10,
+        gap: '12px',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      {/* Left: Branding & Application Menu Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
         <img
           src="/QM Editor Logo.png"
           alt="QM Editor Logo"
-          style={{ height: '28px', width: 'auto', borderRadius: 'var(--radius-sm)' }}
+          style={{ height: '26px', width: 'auto', borderRadius: 'var(--radius-sm)' }}
         />
-        <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)', letterSpacing: '0.5px' }}>
+        <span
+          style={{
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            color: 'var(--text-primary)',
+            letterSpacing: '0.5px',
+            marginRight: '6px',
+          }}
+        >
           QM EDITOR
         </span>
-        <Badge variant="accent">v0.1.0 Storage Engine</Badge>
 
-        {/* Command Palette Trigger Button */}
+        {/* Application Menu Bar */}
+        <MenuBar />
+      </div>
+
+      {/* Center: Command Palette Search Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, maxWidth: '420px' }}>
         <button
           onClick={() => executeCommand('workbench.action.showCommands')}
           aria-label="Search Commands (Ctrl+Shift+P)"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
+            justifyContent: 'space-between',
+            width: '100%',
+            maxWidth: '380px',
             backgroundColor: 'var(--bg-tertiary)',
             border: '1px solid var(--border-color)',
             borderRadius: 'var(--radius-sm)',
-            padding: '4px 10px',
+            padding: '3px 10px',
             color: 'var(--text-muted)',
-            fontSize: '0.8rem',
+            fontSize: '0.78rem',
             cursor: 'pointer',
-            marginLeft: '8px',
             transition: 'border-color 0.15s ease',
           }}
         >
-          <Search size={14} style={{ color: 'var(--accent-color)' }} />
-          <span>Search commands...</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Search size={13} style={{ color: 'var(--accent-color)' }} />
+            <span>Search commands...</span>
+          </div>
           <kbd
             style={{
-              fontSize: '0.7rem',
+              fontSize: '0.68rem',
               backgroundColor: 'var(--bg-secondary)',
               color: 'var(--text-primary)',
               padding: '1px 4px',
@@ -76,71 +90,58 @@ export const Header: React.FC = () => {
         </button>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', borderRight: '1px solid var(--border-color)', paddingRight: '8px' }}>
+      {/* Right: Navigation, Primary Toolbar & Shell Toggles */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+        {/* Navigation History */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '2px',
+            borderRight: '1px solid var(--border-color)',
+            paddingRight: '6px',
+          }}
+        >
           <IconButton
             onClick={() => executeCommand('navigation.back')}
             disabled={!canBack}
             aria-label="Navigate Back (Alt+Left)"
-            icon={<ChevronLeft size={18} />}
+            icon={<ChevronLeft size={16} />}
           />
           <IconButton
             onClick={() => executeCommand('navigation.forward')}
             disabled={!canForward}
             aria-label="Navigate Forward (Alt+Right)"
-            icon={<ChevronRight size={18} />}
+            icon={<ChevronRight size={16} />}
           />
         </div>
 
-        <IconButton
-          onClick={() => executeCommand('file.openRecent')}
-          aria-label="Recently Opened Files (Ctrl+Shift+R)"
-          icon={<Clock size={18} />}
-        />
+        {/* Primary Unified Toolbar */}
+        <Toolbar />
 
-        <Button
-          onClick={() => executeCommand('file.new')}
-          variant="secondary"
-          icon={<Plus size={16} />}
+        {/* Shell Toggles */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            borderLeft: '1px solid var(--border-color)',
+            paddingLeft: '6px',
+          }}
         >
-          New File
-        </Button>
+          <IconButton
+            onClick={() => executeCommand('shell.togglePanel')}
+            active={state.panelOpen}
+            aria-label="Toggle Console Panel"
+            icon={<Terminal size={16} />}
+          />
 
-        <Button
-          onClick={() => executeCommand('file.open')}
-          variant="secondary"
-          icon={<FolderOpen size={16} />}
-        >
-          Open File
-        </Button>
-
-        <Button
-          onClick={() => executeCommand('file.save')}
-          disabled={!canSave || !activeDoc}
-          variant={canSave ? 'primary' : 'secondary'}
-          icon={<Save size={16} />}
-        >
-          Save (Ctrl+S)
-        </Button>
-
-        <IconButton
-          onClick={() => executeCommand('workbench.action.openSettings')}
-          aria-label="Editor Settings"
-          icon={<Settings size={18} />}
-        />
-
-        <IconButton
-          onClick={() => executeCommand('shell.togglePanel')}
-          active={state.panelOpen}
-          aria-label="Toggle Console Panel"
-          icon={<Terminal size={18} />}
-        />
-
-        <IconButton
-          onClick={() => executeCommand('shell.toggleTheme')}
-          aria-label="Toggle Theme Mode"
-          icon={state.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-        />
+          <IconButton
+            onClick={() => executeCommand('shell.toggleTheme')}
+            aria-label="Toggle Theme Mode"
+            icon={state.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+          />
+        </div>
       </div>
     </header>
   );

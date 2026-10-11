@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { FocusTrap } from '../accessibility/FocusTrap';
 
 export interface DialogProps {
   isOpen: boolean;
@@ -8,17 +9,9 @@ export interface DialogProps {
 }
 
 export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, title, children }) => {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
   if (!isOpen) return null;
+
+  const titleId = `dialog-title-${title.replace(/\s+/g, '-').toLowerCase()}`;
 
   return (
     <div
@@ -32,12 +25,18 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, title, children
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000,
+        zIndex: 'var(--z-modal, 1000)',
         backdropFilter: 'blur(4px)',
       }}
       onClick={onClose}
     >
-      <div
+      <FocusTrap
+        active={isOpen}
+        scope="dialog"
+        onEscape={onClose}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         style={{
           width: '90%',
           maxWidth: '480px',
@@ -47,8 +46,9 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, title, children
           boxShadow: 'var(--shadow-md)',
           padding: '20px',
           color: 'var(--text-primary)',
+          outline: 'none',
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         <div
           style={{
@@ -60,7 +60,9 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, title, children
             paddingBottom: '12px',
           }}
         >
-          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>{title}</h3>
+          <h3 id={titleId} style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>
+            {title}
+          </h3>
           <button
             onClick={onClose}
             aria-label="Close Dialog"
@@ -70,13 +72,15 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, title, children
               color: 'var(--text-muted)',
               fontSize: '1.2rem',
               cursor: 'pointer',
+              padding: '2px 6px',
+              borderRadius: 'var(--radius-sm)',
             }}
           >
             ✕
           </button>
         </div>
         <div>{children}</div>
-      </div>
+      </FocusTrap>
     </div>
   );
 };

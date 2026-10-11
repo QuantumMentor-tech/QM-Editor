@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { CommandRegistry, globalCommandRegistry } from '../core/commands/CommandRegistry';
+import { CommandSurfaceRegistry, globalCommandSurfaceRegistry } from '../core/commands/CommandSurfaceRegistry';
 import { defaultCommands } from '../core/commands/defaultCommands';
 import { CommandContext as CommandContextType } from '../core/commands/CommandTypes';
 import { ShortcutManager } from '../core/commands/ShortcutManager';
@@ -9,9 +10,12 @@ import { useExplorer } from './ExplorerContext';
 import { useSearch } from './SearchContext';
 import { useNavigation } from './NavigationContext';
 import { useSourceControl } from './SourceControlContext';
+import { useTerminal } from './TerminalContext';
+import { useTasks } from './TaskContext';
+import { terminalService } from '../core/terminal/TerminalService';
 import { GoToLineModal } from '../components/navigation/GoToLineModal';
 import { RecentDocumentsModal } from '../components/navigation/RecentDocumentsModal';
-import { EditorSettingsModal } from '../components/settings/EditorSettingsModal';
+import { UnifiedSettingsModal } from '../components/settings/UnifiedSettingsModal';
 import { CommandPaletteModal } from '../components/palette/CommandPaletteModal';
 import { QuickOpenModal } from '../components/navigation/QuickOpenModal';
 import { WorkspaceSearchModal } from '../components/search/WorkspaceSearchModal';
@@ -21,8 +25,10 @@ import { fileService } from '../services/FileService';
 
 export interface CommandContextApi {
   registry: CommandRegistry;
-  executeCommand: (id: string) => Promise<void>;
-  canExecuteCommand: (id: string) => boolean;
+  surfaceRegistry: CommandSurfaceRegistry;
+  executeCommand: (id: string, contextualTarget?: any) => Promise<boolean>;
+  canExecuteCommand: (id: string, contextualTarget?: any) => boolean;
+  getCommandContext: (contextualTarget?: any) => CommandContextType;
 }
 
 const CommandContext = createContext<CommandContextApi | undefined>(undefined);
@@ -48,17 +54,36 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
     toggleLineNumbers,
     toggleWhitespace,
     toggleFolding,
+    setActivePanelView,
+    resetLayout,
+    toggleUiDensity,
+    openWelcome,
+    closeWelcome,
     openDialog,
     closeDialog,
   } = useShellState();
-  const { activeDoc, openDocs, saveDoc, saveDocAs, createDoc, openFile, openFilePath, closeDoc, activateDoc, updateText } = useWorkspace();
+  const {
+    activeDoc,
+    openDocs,
+    registry,
+    saveDoc,
+    saveDocAs,
+    createDoc,
+    openFile,
+    openFilePath,
+    closeDoc,
+    activateDoc,
+    updateText,
+  } = useWorkspace();
   const { workspaceRoot, openWorkspace, refreshWorkspace, revealActiveFile } = useExplorer();
   const { openSearch, closeSearch, findNext, findPrevious, replaceCurrent, replaceAll } = useSearch();
   const { navigateBack, navigateForward, canNavigateBack, canNavigateForward, currentPos } = useNavigation();
   const { refresh: refreshSCM, getDiff: getDiffSCM } = useSourceControl();
+  const { createTerminal, clearActiveTerminal, closeTerminal, activeSessionId, writeToActive } = useTerminal();
+  const { runTask, runBuildTask, runTestTask, cancelTask, activeSession: activeTaskSession } = useTasks();
 
   const openSettings = () => {
-    openDialog('Editor Preferences & Settings', <EditorSettingsModal />);
+    openDialog('Settings & Preferences', <UnifiedSettingsModal />);
   };
 
   const handleOpenCommandPalette = () => {
@@ -247,7 +272,144 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
     openDiff: handleOpenScmDiff,
   };
 
-  const commandContextRef = useRef<CommandContextType>({
+  const explorerActions = {
+    openWorkspace,
+    refreshWorkspace,
+    revealActiveFile,
+    copyPath: (uri: string) => {
+      if (navigator.clipboard) navigator.clipboard.writeText(uri);
+    },
+    copyRelativePath: (uri: string) => {
+      let rel = uri;
+      if (workspaceRoot && uri.startsWith(workspaceRoot.uri)) {
+        rel = uri.substring(workspaceRoot.uri.length).replace(/^[\\/]/, '');
+      }
+      if (navigator.clipboard) navigator.clipboard.writeText(rel);
+    },
+  };
+
+  const terminalActions = {
+    newTerminal: () => {
+      setActivePanelView('terminal');
+      createTerminal();
+    },
+    togglePanel: () => {
+      if (!shellState.panelOpen || shellState.activePanelView !== 'terminal') {
+        setActivePanelView('terminal');
+      } else {
+        togglePanel();
+      }
+    },
+    clear: () => clearActiveTerminal(),
+    kill: () => {
+      if (activeSessionId) closeTerminal(activeSessionId);
+    },
+    next: () => terminalService.nextSession(),
+    previous: () => terminalService.previousSession(),
+    copy: () => {
+      const sel = window.getSelection()?.toString();
+      if (sel && navigator.clipboard) {
+        navigator.clipboard.writeText(sel);
+      }
+    },
+    paste: async () => {
+      if (navigator.clipboard && writeToActive) {
+        const text = await navigator.clipboard.readText();
+        if (text) writeToActive(text);
+      }
+    },
+  };
+
+  const taskActions = {
+    runTask: async (taskId?: string) => {
+      setActivePanelView('tasks');
+      if (taskId) {
+        await runTask(taskId);
+      } else {
+        await runBuildTask();
+      }
+    },
+    runBuild: async () => {
+      setActivePanelView('tasks');
+      await runBuildTask();
+    },
+    runTest: async () => {
+      setActivePanelView('tasks');
+      await runTestTask();
+    },
+    cancel: async () => {
+      if (activeTaskSession) {
+        await cancelTask(activeTaskSession.sessionId);
+      }
+    },
+    showTasks: () => {
+      setActivePanelView('tasks');
+    },
+    showProblems: () => {
+      setActivePanelView('problems');
+    },
+  };
+
+  const tabActions = {
+    closeOthers: (targetId: string) => {
+      openDocs.filter((d) => d.id !== targetId).forEach((d) => closeDoc(d.id));
+    },
+    closeSaved: () => {
+      openDocs.filter((d) => !d.isDirty).forEach((d) => closeDoc(d.id));
+    },
+    closeToTheRight: (targetId: string) => {
+      const idx = registry.openDocIds.indexOf(targetId);
+      if (idx >= 0) {
+        registry.openDocIds.slice(idx + 1).forEach((id) => closeDoc(id));
+      }
+    },
+    copyPath: (path: string) => {
+      if (navigator.clipboard) navigator.clipboard.writeText(path);
+    },
+  };
+
+  const editorActions = {
+    undo: () => window.dispatchEvent(new CustomEvent('qm:editor:undo')),
+    redo: () => window.dispatchEvent(new CustomEvent('qm:editor:redo')),
+    selectAll: () => window.dispatchEvent(new CustomEvent('qm:editor:selectall')),
+    cut: () => window.dispatchEvent(new CustomEvent('qm:editor:cut')),
+    copy: () => window.dispatchEvent(new CustomEvent('qm:editor:copy')),
+    paste: () => window.dispatchEvent(new CustomEvent('qm:editor:paste')),
+  };
+
+  const problemActions = {
+    copyMessage: (msg: string) => {
+      if (navigator.clipboard) navigator.clipboard.writeText(msg);
+    },
+    goToSource: async (file: string, line: number, column?: number) => {
+      if (openFilePath) {
+        await openFilePath(file);
+      } else {
+        const matching = openDocs.find((d) => d.filePath === file || d.title === file);
+        if (matching) {
+          activateDoc(matching.id);
+        }
+      }
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent('qm:editor:gotoline', {
+            detail: { line, column: column || 1 },
+          })
+        );
+      }, 50);
+    },
+  };
+
+  const clipboardActions = {
+    writeText: async (text: string) => {
+      if (navigator.clipboard) await navigator.clipboard.writeText(text);
+    },
+    readText: async () => {
+      return navigator.clipboard ? await navigator.clipboard.readText() : '';
+    },
+  };
+
+  const buildContext = (contextualTarget?: any): CommandContextType => ({
     activeDoc,
     shellState,
     workspaceActions: { saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc },
@@ -264,44 +426,41 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
       toggleFolding,
       openSettings,
       openCommandPalette: handleOpenCommandPalette,
+      resetLayout,
+      toggleUiDensity,
+      openWelcome,
+      closeWelcome,
     },
-    explorerActions: { openWorkspace, refreshWorkspace, revealActiveFile },
+    explorerActions,
     searchActions,
     navigationActions,
     sourceControlActions,
+    terminalActions,
+    taskActions,
+    tabActions,
+    editorActions,
+    problemActions,
+    clipboardActions,
+    contextualTarget,
   });
 
+  const commandContextRef = useRef<CommandContextType>(buildContext());
+
   // Keep commandContextRef in sync on re-renders
-  commandContextRef.current = {
-    activeDoc,
-    shellState,
-    workspaceActions: { saveDoc, saveDocAs, createDoc, openFile, closeDoc, activateDoc },
-    shellActions: {
-      toggleSidebar,
-      togglePanel,
-      toggleTheme,
-      zoomIn,
-      zoomOut,
-      zoomReset,
-      toggleWordWrap,
-      toggleLineNumbers,
-      toggleWhitespace,
-      toggleFolding,
-      openSettings,
-      openCommandPalette: handleOpenCommandPalette,
-    },
-    explorerActions: { openWorkspace, refreshWorkspace, revealActiveFile },
-    searchActions,
-    navigationActions,
-    sourceControlActions,
+  commandContextRef.current = buildContext();
+
+  const executeCommand = async (id: string, contextualTarget?: any): Promise<boolean> => {
+    const ctx = contextualTarget ? buildContext(contextualTarget) : commandContextRef.current;
+    return await globalCommandSurfaceRegistry.revalidateAndExecute(id, ctx);
   };
 
-  const executeCommand = async (id: string): Promise<void> => {
-    await globalCommandRegistry.execute(id, commandContextRef.current);
+  const canExecuteCommand = (id: string, contextualTarget?: any): boolean => {
+    const ctx = contextualTarget ? buildContext(contextualTarget) : commandContextRef.current;
+    return globalCommandRegistry.canExecute(id, ctx);
   };
 
-  const canExecuteCommand = (id: string): boolean => {
-    return globalCommandRegistry.canExecute(id, commandContextRef.current);
+  const getCommandContext = (contextualTarget?: any): CommandContextType => {
+    return contextualTarget ? buildContext(contextualTarget) : commandContextRef.current;
   };
 
   // Keyboard shortcut listener
@@ -318,8 +477,10 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
     <CommandContext.Provider
       value={{
         registry: globalCommandRegistry,
+        surfaceRegistry: globalCommandSurfaceRegistry,
         executeCommand,
         canExecuteCommand,
+        getCommandContext,
       }}
     >
       {children}

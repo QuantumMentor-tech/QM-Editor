@@ -20,23 +20,56 @@
 
   --accent-primary: #0284c7;
   --accent-hover: #0369a1;
+
+  /* Semantic Feedback & State Colors */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #38bdf8;
   
   /* Typography */
   --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-code: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
 
-  /* Sizing & Spacing */
+  /* Sizing & Spacing (Comfortable Default) */
   --header-height: 48px;
   --statusbar-height: 28px;
+  --tab-height: 38px;
   --sidebar-width: 260px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
 
+  /* Z-Index Hierarchy Layer Tokens (Step 25, Rule 37) */
+  --z-base: 1;
+  --z-resizer: 10;
+  --z-header: 20;
+  --z-popover: 50;
+  --z-dropdown: 100;
+  --z-contextmenu: 500;
+  --z-modal: 1000;
+  --z-toast: 2000;
+  --z-banner: 3000;
+  --z-tooltip: 4000;
+
   /* Transitions & Shadows */
   --transition-fast: 150ms ease;
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+}
+
+/* Compact UI Density Mode (Step 25, Rules 41-44) */
+[data-density="compact"] {
+  --header-height: 40px;
+  --statusbar-height: 24px;
+  --tab-height: 30px;
+}
+
+/* Responsive Desktop Adaptive Rules (Step 25, Rules 31-32) */
+@media (max-width: 800px) {
+  .status-item-secondary {
+    display: none !important;
+  }
 }
 
 [data-theme="light"] {
@@ -102,3 +135,58 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* =========================================================================
+   Step 24: Accessible Focus Indicators, High Contrast & Reduced Motion
+   ========================================================================= */
+
+/* Visible Focus Indicator (Rule 49: never use outline:none without indicator) */
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+[role="treeitem"]:focus-visible,
+[role="menuitem"]:focus-visible {
+  outline: 2px solid var(--border-focus) !important;
+  outline-offset: 2px !important;
+}
+
+/* Component Keyframe Animations */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* High Contrast / Forced Colors Mode */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+}
+
+/* Reduced Motion Preference (Rule 53) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+

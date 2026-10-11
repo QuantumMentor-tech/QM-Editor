@@ -1,4 +1,5 @@
 import { Command } from './CommandTypes';
+import { globalFocusManager } from '../accessibility/FocusManager';
 
 export const defaultCommands: Command[] = [
   {
@@ -423,4 +424,494 @@ export const defaultCommands: Command[] = [
       if (ctx.sourceControlActions?.openDiff) await ctx.sourceControlActions.openDiff();
     },
   },
+  {
+    id: 'terminal.new',
+    label: 'Terminal: Create New Terminal',
+    category: 'terminal',
+    shortcut: 'Mod+Shift+`',
+    description: 'Create and open a new terminal session',
+    canExecute: (ctx) => Boolean(ctx.terminalActions?.newTerminal),
+    execute: (ctx) => {
+      if (ctx.terminalActions?.newTerminal) ctx.terminalActions.newTerminal();
+    },
+  },
+  {
+    id: 'workbench.action.terminal.new',
+    label: 'Terminal: Create New Terminal',
+    category: 'terminal',
+    shortcut: 'Mod+Shift+`',
+    description: 'Create and open a new terminal session',
+    canExecute: (ctx) => Boolean(ctx.terminalActions?.newTerminal),
+    execute: (ctx) => {
+      if (ctx.terminalActions?.newTerminal) ctx.terminalActions.newTerminal();
+    },
+  },
+  {
+    id: 'terminal.togglePanel',
+    label: 'Terminal: Toggle Terminal Panel',
+    category: 'terminal',
+    shortcut: 'Mod+`',
+    description: 'Show or hide the integrated terminal panel',
+    canExecute: (ctx) => Boolean(ctx.terminalActions?.togglePanel),
+    execute: (ctx) => {
+      if (ctx.terminalActions?.togglePanel) ctx.terminalActions.togglePanel();
+    },
+  },
+  {
+    id: 'workbench.action.terminal.toggleTerminal',
+    label: 'Terminal: Toggle Terminal Panel',
+    category: 'terminal',
+    shortcut: 'Mod+`',
+    description: 'Show or hide the integrated terminal panel',
+    canExecute: (ctx) => Boolean(ctx.terminalActions?.togglePanel),
+    execute: (ctx) => {
+      if (ctx.terminalActions?.togglePanel) ctx.terminalActions.togglePanel();
+    },
+  },
+  {
+    id: 'terminal.clear',
+    label: 'Terminal: Clear Terminal Display',
+    category: 'terminal',
+    description: 'Clear output buffer of active terminal',
+    canExecute: (ctx) => Boolean(ctx.terminalActions?.clear),
+    execute: (ctx) => {
+      if (ctx.terminalActions?.clear) ctx.terminalActions.clear();
+    },
+  },
+  {
+    id: 'terminal.kill',
+    label: 'Terminal: Kill Active Terminal Process',
+    category: 'terminal',
+    description: 'Terminate active terminal process',
+    canExecute: (ctx) => Boolean(ctx.terminalActions?.kill),
+    execute: (ctx) => {
+      if (ctx.terminalActions?.kill) ctx.terminalActions.kill();
+    },
+  },
+  {
+    id: 'terminal.next',
+    label: 'Terminal: Focus Next Terminal',
+    category: 'terminal',
+    description: 'Switch to next terminal session',
+    canExecute: (ctx) => Boolean(ctx.terminalActions?.next),
+    execute: (ctx) => {
+      if (ctx.terminalActions?.next) ctx.terminalActions.next();
+    },
+  },
+  {
+    id: 'terminal.previous',
+    label: 'Terminal: Focus Previous Terminal',
+    category: 'terminal',
+    description: 'Switch to previous terminal session',
+    canExecute: (ctx) => Boolean(ctx.terminalActions?.previous),
+    execute: (ctx) => {
+      if (ctx.terminalActions?.previous) ctx.terminalActions.previous();
+    },
+  },
+  {
+    id: 'task.run',
+    label: 'Tasks: Run Task...',
+    category: 'tasks',
+    description: 'Select and run a project task',
+    canExecute: (ctx) => Boolean(ctx.taskActions?.runTask),
+    execute: async (ctx) => {
+      if (ctx.taskActions?.runTask) await ctx.taskActions.runTask();
+    },
+  },
+  {
+    id: 'task.build',
+    label: 'Tasks: Run Build Task',
+    category: 'tasks',
+    shortcut: 'Mod+Shift+B',
+    description: 'Run project default build task',
+    canExecute: (ctx) => Boolean(ctx.taskActions?.runBuild),
+    execute: async (ctx) => {
+      if (ctx.taskActions?.runBuild) await ctx.taskActions.runBuild();
+    },
+  },
+  {
+    id: 'task.test',
+    label: 'Tasks: Run Test Task',
+    category: 'tasks',
+    description: 'Run project test suite',
+    canExecute: (ctx) => Boolean(ctx.taskActions?.runTest),
+    execute: async (ctx) => {
+      if (ctx.taskActions?.runTest) await ctx.taskActions.runTest();
+    },
+  },
+  {
+    id: 'task.cancel',
+    label: 'Tasks: Cancel Running Task',
+    category: 'tasks',
+    description: 'Cancel currently executing task process',
+    canExecute: (ctx) => Boolean(ctx.taskActions?.cancel),
+    execute: async (ctx) => {
+      if (ctx.taskActions?.cancel) await ctx.taskActions.cancel();
+    },
+  },
+  {
+    id: 'task.showTasks',
+    label: 'Tasks: Show Tasks Panel',
+    category: 'tasks',
+    description: 'Open the tasks execution panel in bottom view',
+    canExecute: (ctx) => Boolean(ctx.taskActions?.showTasks),
+    execute: (ctx) => {
+      if (ctx.taskActions?.showTasks) ctx.taskActions.showTasks();
+    },
+  },
+  {
+    id: 'task.showProblems',
+    label: 'Tasks: Show Problems Panel',
+    category: 'tasks',
+    description: 'Open the problem diagnostics panel in bottom view',
+    canExecute: (ctx) => Boolean(ctx.taskActions?.showProblems),
+    execute: (ctx) => {
+      if (ctx.taskActions?.showProblems) ctx.taskActions.showProblems();
+    },
+  },
+  {
+    id: 'editor.undo',
+    label: 'Undo',
+    category: 'editor',
+    shortcut: 'Mod+Z',
+    description: 'Undo the last editing action in the active document',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && !ctx.activeDoc.fileResource?.readOnly),
+    execute: (ctx) => {
+      if (ctx.editorActions?.undo) {
+        ctx.editorActions.undo();
+      } else {
+        window.dispatchEvent(new CustomEvent('qm:editor:undo'));
+      }
+    },
+  },
+  {
+    id: 'editor.redo',
+    label: 'Redo',
+    category: 'editor',
+    shortcut: 'Mod+Y',
+    description: 'Redo the last undone editing action',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && !ctx.activeDoc.fileResource?.readOnly),
+    execute: (ctx) => {
+      if (ctx.editorActions?.redo) {
+        ctx.editorActions.redo();
+      } else {
+        window.dispatchEvent(new CustomEvent('qm:editor:redo'));
+      }
+    },
+  },
+  {
+    id: 'editor.cut',
+    label: 'Cut',
+    category: 'editor',
+    shortcut: 'Mod+X',
+    description: 'Cut selected text to system clipboard',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && !ctx.activeDoc.fileResource?.readOnly),
+    execute: (ctx) => {
+      if (ctx.editorActions?.cut) {
+        ctx.editorActions.cut();
+      } else {
+        window.dispatchEvent(new CustomEvent('qm:editor:cut'));
+      }
+    },
+  },
+  {
+    id: 'editor.copy',
+    label: 'Copy',
+    category: 'editor',
+    shortcut: 'Mod+C',
+    description: 'Copy selected text to system clipboard',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: (ctx) => {
+      if (ctx.editorActions?.copy) {
+        ctx.editorActions.copy();
+      } else {
+        window.dispatchEvent(new CustomEvent('qm:editor:copy'));
+      }
+    },
+  },
+  {
+    id: 'editor.paste',
+    label: 'Paste',
+    category: 'editor',
+    shortcut: 'Mod+V',
+    description: 'Paste text from system clipboard',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && !ctx.activeDoc.fileResource?.readOnly),
+    execute: (ctx) => {
+      if (ctx.editorActions?.paste) {
+        ctx.editorActions.paste();
+      } else {
+        window.dispatchEvent(new CustomEvent('qm:editor:paste'));
+      }
+    },
+  },
+  {
+    id: 'editor.selectAll',
+    label: 'Select All',
+    category: 'editor',
+    shortcut: 'Mod+A',
+    description: 'Select all content in the active document',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: (ctx) => {
+      if (ctx.editorActions?.selectAll) {
+        ctx.editorActions.selectAll();
+      } else {
+        window.dispatchEvent(new CustomEvent('qm:editor:selectall'));
+      }
+    },
+  },
+  {
+    id: 'tabs.closeOthers',
+    label: 'Close Other Tabs',
+    category: 'document',
+    description: 'Close all open document tabs except the active or targeted document',
+    canExecute: (ctx) => Boolean(ctx.tabActions?.closeOthers || ctx.activeDoc),
+    execute: (ctx) => {
+      const targetId = ctx.contextualTarget?.documentId || ctx.activeDoc?.id;
+      if (targetId && ctx.tabActions?.closeOthers) {
+        ctx.tabActions.closeOthers(targetId);
+      }
+    },
+  },
+  {
+    id: 'tabs.closeSaved',
+    label: 'Close Saved Tabs',
+    category: 'document',
+    description: 'Close all tabs with clean, saved content',
+    canExecute: (ctx) => Boolean(ctx.tabActions?.closeSaved),
+    execute: (ctx) => {
+      if (ctx.tabActions?.closeSaved) {
+        ctx.tabActions.closeSaved();
+      }
+    },
+  },
+  {
+    id: 'tabs.closeToRight',
+    label: 'Close Tabs to the Right',
+    category: 'document',
+    description: 'Close all tabs positioned to the right of the targeted tab',
+    canExecute: (ctx) => Boolean(ctx.tabActions?.closeToTheRight || ctx.activeDoc),
+    execute: (ctx) => {
+      const targetId = ctx.contextualTarget?.documentId || ctx.activeDoc?.id;
+      if (targetId && ctx.tabActions?.closeToTheRight) {
+        ctx.tabActions.closeToTheRight(targetId);
+      }
+    },
+  },
+  {
+    id: 'tabs.copyPath',
+    label: 'Copy Path',
+    category: 'document',
+    description: 'Copy document absolute path to clipboard',
+    canExecute: (ctx) => Boolean(ctx.contextualTarget?.filePath || ctx.activeDoc?.filePath || ctx.activeDoc?.fileResource?.uri),
+    execute: (ctx) => {
+      const path = ctx.contextualTarget?.filePath || ctx.activeDoc?.filePath || ctx.activeDoc?.fileResource?.uri;
+      if (path && ctx.tabActions?.copyPath) {
+        ctx.tabActions.copyPath(path);
+      } else if (path && navigator.clipboard) {
+        navigator.clipboard.writeText(path);
+      }
+    },
+  },
+  {
+    id: 'explorer.copyPath',
+    label: 'Copy Path',
+    category: 'workspace',
+    description: 'Copy explorer resource path to clipboard',
+    canExecute: (ctx) => Boolean(ctx.contextualTarget?.uri || ctx.activeDoc?.fileResource?.uri),
+    execute: (ctx) => {
+      const targetUri = ctx.contextualTarget?.uri || ctx.activeDoc?.fileResource?.uri || '';
+      if (targetUri && ctx.explorerActions?.copyPath) {
+        ctx.explorerActions.copyPath(targetUri);
+      } else if (targetUri && navigator.clipboard) {
+        navigator.clipboard.writeText(targetUri);
+      }
+    },
+  },
+  {
+    id: 'explorer.copyRelativePath',
+    label: 'Copy Relative Path',
+    category: 'workspace',
+    description: 'Copy explorer resource relative path to clipboard',
+    canExecute: (ctx) => Boolean(ctx.contextualTarget?.uri || ctx.activeDoc?.fileResource?.uri),
+    execute: (ctx) => {
+      const targetUri = ctx.contextualTarget?.uri || ctx.activeDoc?.fileResource?.uri || '';
+      if (targetUri && ctx.explorerActions?.copyRelativePath) {
+        ctx.explorerActions.copyRelativePath(targetUri);
+      } else if (targetUri && navigator.clipboard) {
+        navigator.clipboard.writeText(targetUri);
+      }
+    },
+  },
+  {
+    id: 'terminal.copy',
+    label: 'Copy Terminal Selection',
+    category: 'terminal',
+    shortcut: 'Mod+Shift+C',
+    description: 'Copy selected terminal output text',
+    canExecute: (ctx) => Boolean(ctx.terminalActions?.copy),
+    execute: (ctx) => {
+      if (ctx.terminalActions?.copy) ctx.terminalActions.copy();
+    },
+  },
+  {
+    id: 'terminal.paste',
+    label: 'Paste into Terminal',
+    category: 'terminal',
+    shortcut: 'Mod+Shift+V',
+    description: 'Paste text from clipboard into active terminal',
+    canExecute: (ctx) => Boolean(ctx.terminalActions?.paste),
+    execute: (ctx) => {
+      if (ctx.terminalActions?.paste) ctx.terminalActions.paste();
+    },
+  },
+  {
+    id: 'problems.goToSource',
+    label: 'Go to Problem Source',
+    category: 'tasks',
+    description: 'Open file and jump to problem diagnostic location',
+    canExecute: (ctx) => Boolean(ctx.contextualTarget?.file && ctx.problemActions?.goToSource),
+    execute: (ctx) => {
+      const p = ctx.contextualTarget;
+      if (p && ctx.problemActions?.goToSource) {
+        ctx.problemActions.goToSource(p.file, p.line, p.column);
+      }
+    },
+  },
+  {
+    id: 'problems.copyMessage',
+    label: 'Copy Problem Message',
+    category: 'tasks',
+    description: 'Copy problem diagnostic message to clipboard',
+    canExecute: (ctx) => Boolean(ctx.contextualTarget?.message && ctx.problemActions?.copyMessage),
+    execute: (ctx) => {
+      const p = ctx.contextualTarget;
+      if (p && ctx.problemActions?.copyMessage) {
+        ctx.problemActions.copyMessage(p.message);
+      } else if (p?.message && navigator.clipboard) {
+        navigator.clipboard.writeText(p.message);
+      }
+    },
+  },
+  {
+    id: 'help.about',
+    label: 'About QM Editor',
+    category: 'help',
+    description: 'View QM Editor product and version details',
+    canExecute: () => true,
+    execute: () => {
+      window.dispatchEvent(new CustomEvent('qm:show:about'));
+    },
+  },
+  {
+    id: 'workbench.action.focusExplorer',
+    label: 'Focus File Explorer',
+    category: 'workspace',
+    shortcut: 'Mod+Shift+E',
+    description: 'Move keyboard focus into the File Explorer tree',
+    canExecute: () => true,
+    execute: () => {
+      globalFocusManager.focusRegion('explorer');
+    },
+  },
+  {
+    id: 'workbench.action.focusEditor',
+    label: 'Focus Active Editor',
+    category: 'editor',
+    shortcut: 'Mod+1',
+    description: 'Move keyboard focus into the active document editor',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      globalFocusManager.focusRegion('editor');
+    },
+  },
+  {
+    id: 'workbench.action.focusTerminal',
+    label: 'Focus Terminal',
+    category: 'terminal',
+    shortcut: 'Mod+`',
+    description: 'Move keyboard focus into the integrated terminal',
+    canExecute: () => true,
+    execute: (ctx) => {
+      if (!ctx.shellState.panelOpen) {
+        ctx.shellActions.togglePanel();
+      }
+      globalFocusManager.focusRegion('terminal');
+    },
+  },
+  {
+    id: 'workbench.action.focusProblems',
+    label: 'Focus Problems Panel',
+    category: 'tasks',
+    shortcut: 'Mod+Shift+M',
+    description: 'Move keyboard focus into the Problems diagnostics panel',
+    canExecute: () => true,
+    execute: (ctx) => {
+      if (!ctx.shellState.panelOpen) {
+        ctx.shellActions.togglePanel();
+      }
+      globalFocusManager.focusRegion('problems');
+    },
+  },
+  {
+    id: 'workbench.action.focusSettings',
+    label: 'Focus Settings',
+    category: 'shell',
+    description: 'Open and focus the unified settings dialog',
+    canExecute: (ctx) => Boolean(ctx.shellActions.openSettings),
+    execute: (ctx) => {
+      if (ctx.shellActions.openSettings) {
+        ctx.shellActions.openSettings();
+      }
+      globalFocusManager.focusRegion('settings');
+    },
+  },
+  {
+    id: 'workbench.action.resetLayout',
+    label: 'View: Reset Layout to Defaults',
+    category: 'shell',
+    description: 'Reset sidebar width, console panel height, and UI density to default values',
+    canExecute: (ctx) => Boolean(ctx.shellActions.resetLayout),
+    execute: (ctx) => {
+      if (ctx.shellActions.resetLayout) {
+        ctx.shellActions.resetLayout();
+      }
+    },
+  },
+  {
+    id: 'workbench.action.toggleDensity',
+    label: 'View: Toggle UI Density',
+    category: 'shell',
+    description: 'Switch between comfortable and compact user interface density',
+    canExecute: (ctx) => Boolean(ctx.shellActions.toggleUiDensity),
+    execute: (ctx) => {
+      if (ctx.shellActions.toggleUiDensity) {
+        ctx.shellActions.toggleUiDensity();
+      }
+    },
+  },
+  {
+    id: 'workbench.action.openWelcome',
+    label: 'Help: Welcome (Start Center)',
+    category: 'shell',
+    description: 'Open the QM Editor Start Center and Welcome screen',
+    canExecute: (ctx) => Boolean(ctx.shellActions.openWelcome),
+    execute: (ctx) => {
+      if (ctx.shellActions.openWelcome) {
+        ctx.shellActions.openWelcome();
+      }
+    },
+  },
+  {
+    id: 'workbench.action.closeWelcome',
+    label: 'View: Close Welcome',
+    category: 'shell',
+    description: 'Close the Welcome screen and return to the code editor',
+    canExecute: (ctx) => Boolean(ctx.shellActions.closeWelcome),
+    execute: (ctx) => {
+      if (ctx.shellActions.closeWelcome) {
+        ctx.shellActions.closeWelcome();
+      }
+    },
+  },
 ];
+

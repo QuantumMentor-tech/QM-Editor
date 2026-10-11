@@ -4,8 +4,9 @@ import { QuickOpenResource, workspaceIndexService } from '../../services/Workspa
 import { WorkspaceReplaceService } from '../../services/WorkspaceReplaceService';
 import { WorkspaceReplaceModal } from './WorkspaceReplaceModal';
 import { DocumentModel, WorkspaceRootModel } from '../../types';
-import { Search, Replace, FileCode, ChevronDown, ChevronRight, AlertCircle, Loader2, Filter } from 'lucide-react';
+import { Search, Replace, FileCode, ChevronDown, ChevronRight, Loader2, Filter } from 'lucide-react';
 import { Button } from '../common/Button';
+import { EmptyState } from '../common/EmptyState';
 
 export interface WorkspaceSearchModalProps {
   workspaceRoot: WorkspaceRootModel | null;
@@ -402,24 +403,16 @@ export const WorkspaceSearchModal: React.FC<WorkspaceSearchModalProps> = ({
         }}
       >
         {searchResults.length === 0 && !isSearching ? (
-          <div
-            style={{
-              padding: '24px 16px',
-              textAlign: 'center',
-              color: 'var(--text-muted)',
-              fontSize: '0.88rem',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <AlertCircle size={24} style={{ opacity: 0.6 }} />
-            <span>
-              {queryText.trim()
-                ? `No matches found for "${queryText}" in workspace`
-                : 'Type a query above to search workspace files'}
-            </span>
+          <div style={{ padding: '24px 16px' }}>
+            <EmptyState
+              icon={<Search size={32} />}
+              title={queryText.trim() ? 'No matches found' : 'Search Workspace'}
+              description={
+                queryText.trim()
+                  ? `No occurrences found matching "${queryText}" across workspace files.`
+                  : 'Type a query above to search files and symbols across the workspace.'
+              }
+            />
           </div>
         ) : (
           searchResults.map((res) => {

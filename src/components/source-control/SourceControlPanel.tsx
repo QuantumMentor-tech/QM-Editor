@@ -11,6 +11,8 @@ import { SourceControlDiffModal } from './SourceControlDiffModal';
 import { SourceControlFileStatus } from '../../core/source-control/SourceControlTypes';
 import { GitBranch, RotateCw, GitCompare, FileCode, AlertCircle, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react';
 import { IconButton } from '../common/IconButton';
+import { Button } from '../common/Button';
+import { EmptyState } from '../common/EmptyState';
 
 export const SourceControlPanel: React.FC = () => {
   const { state: scState, refresh, getDiff } = useSourceControl();
@@ -62,16 +64,40 @@ export const SourceControlPanel: React.FC = () => {
     }
   };
 
+  if (scState.isLoading && !scState.lastRefreshedTimestamp) {
+    return (
+      <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+        <RotateCw size={24} className="spin" style={{ animation: 'spin 1s linear infinite', marginBottom: '8px' }} />
+        <div>Checking repository status...</div>
+      </div>
+    );
+  }
+
+  if (scState.error) {
+    return (
+      <div style={{ padding: '24px 16px' }}>
+        <EmptyState
+          icon={<AlertCircle size={32} style={{ color: 'var(--error, #f85149)' }} />}
+          title="Source Control Error"
+          description={scState.error}
+          action={
+            <Button variant="secondary" onClick={handleRefresh}>
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   if (!scState.isGitRepository) {
     return (
-      <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '12px', color: 'var(--text-muted)' }}>
-        <AlertCircle size={32} style={{ color: 'var(--text-muted)', opacity: 0.6 }} />
-        <div>
-          <p style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>No Git Repository Detected</p>
-          <p style={{ fontSize: '0.78rem', marginTop: '4px', lineHeight: '1.4' }}>
-            The current active workspace is not recognized as a Git repository.
-          </p>
-        </div>
+      <div style={{ padding: '24px 16px' }}>
+        <EmptyState
+          icon={<AlertCircle size={32} />}
+          title="No Git Repository Detected"
+          description="This workspace is not a Git repository. Initialize or open a Git repository to track file changes."
+        />
       </div>
     );
   }
@@ -114,10 +140,12 @@ export const SourceControlPanel: React.FC = () => {
       {/* Changes list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
         {totalChanges === 0 ? (
-          <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <CheckCircle2 size={24} style={{ color: 'var(--success)', marginBottom: '8px', opacity: 0.8 }} />
-            <p style={{ fontWeight: 500 }}>No Changes Detected</p>
-            <p style={{ fontSize: '0.75rem', marginTop: '2px' }}>Working tree is clean.</p>
+          <div style={{ padding: '24px 16px' }}>
+            <EmptyState
+              icon={<CheckCircle2 size={32} style={{ color: 'var(--success, #2ea043)' }} />}
+              title="Working tree clean"
+              description="No changes detected in the working tree. All files are up to date."
+            />
           </div>
         ) : (
           <>

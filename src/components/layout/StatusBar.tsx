@@ -58,6 +58,7 @@ export const StatusBar: React.FC = () => {
             <button
               onClick={() => executeCommand('sourceControl.openPanel')}
               title="Click to view Source Control panel"
+              aria-label={`Git branch ${scState.currentBranch || 'main'}, click to open Source Control`}
               style={{
                 background: 'none',
                 border: 'none',
@@ -81,10 +82,10 @@ export const StatusBar: React.FC = () => {
         <span style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {filePath}
         </span>
-        <span>•</span>
-        <span>UTF-8</span>
-        <span>•</span>
-        <span style={{ textTransform: 'capitalize' }}>{language}</span>
+        <span className="status-item-secondary">•</span>
+        <span className="status-item-secondary">UTF-8</span>
+        <span className="status-item-secondary">•</span>
+        <span className="status-item-secondary" style={{ textTransform: 'capitalize' }}>{language}</span>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -93,6 +94,7 @@ export const StatusBar: React.FC = () => {
             <button
               onClick={() => executeCommand('navigation.goToLine')}
               title="Click to Go to Line / Column (Ctrl+G)"
+              aria-label={`Line ${currentPos.line}, Column ${currentPos.column}, click to Go to Line`}
               style={{
                 background: 'none',
                 border: 'none',
@@ -110,8 +112,10 @@ export const StatusBar: React.FC = () => {
           </>
         )}
         <button
+          className="status-item-secondary"
           onClick={cycleTabSize}
           title="Click to cycle tab size"
+          aria-label={`${indentLabel}, click to cycle tab size`}
           style={{
             background: 'none',
             border: 'none',
@@ -124,10 +128,12 @@ export const StatusBar: React.FC = () => {
         >
           {indentLabel}
         </button>
-        <span>•</span>
+        <span className="status-item-secondary">•</span>
         <button
+          className="status-item-secondary"
           onClick={() => executeCommand('editor.toggleWordWrap')}
           title="Click to toggle word wrap"
+          aria-label={`Word wrap ${settings.wordWrap === 'on' ? 'On' : 'Off'}, click to toggle`}
           style={{
             background: 'none',
             border: 'none',
@@ -140,12 +146,14 @@ export const StatusBar: React.FC = () => {
         >
           Wrap: {settings.wordWrap === 'on' ? 'On' : 'Off'}
         </button>
-        <span>•</span>
-        <span>{settings.fontSize}px</span>
-        <span>•</span>
+        <span className="status-item-secondary">•</span>
+        <span className="status-item-secondary">{settings.fontSize}px</span>
+        <span className="status-item-secondary">•</span>
         <button
+          className="status-item-secondary"
           onClick={() => executeCommand('workbench.action.openSettings')}
           title="Open Editor Settings"
+          aria-label="Open Settings"
           style={{
             background: 'none',
             border: 'none',
@@ -161,7 +169,7 @@ export const StatusBar: React.FC = () => {
         >
           <Settings size={12} /> Settings
         </button>
-        <span>•</span>
+        <span className="status-item-secondary">•</span>
         <StatusIndicator status={getStatusType()} label={getStatusLabel()} />
       </div>
     </footer>

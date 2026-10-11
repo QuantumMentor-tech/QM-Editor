@@ -1,6 +1,7 @@
 import React from 'react';
 import { TreeNodeModel } from '../../types';
 import { useSourceControl } from '../../state/SourceControlContext';
+import { useContextMenu } from '../../state/ContextMenuContext';
 import { ChevronRight, ChevronDown, Folder, FolderOpen, FileText, Loader2, AlertCircle } from 'lucide-react';
 
 export interface TreeNodeRowProps {
@@ -26,10 +27,18 @@ export const TreeNodeRow: React.FC<TreeNodeRowProps> = ({
 }) => {
   const isDirectory = node.kind === 'directory';
   const { state: scState } = useSourceControl();
+  const { openContextMenu } = useContextMenu();
 
   const fileStatus = !isDirectory && scState.isGitRepository
     ? scState.fileStatuses.get(node.uri.toLowerCase())
     : undefined;
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onSelect(node);
+    openContextMenu('contextmenu:explorer', { x: e.clientX, y: e.clientY }, { uri: node.uri, node });
+  };
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -101,14 +110,18 @@ export const TreeNodeRow: React.FC<TreeNodeRowProps> = ({
     );
   };
 
+  const accessibleLabel = `${node.name}${isDirectory ? (isExpanded ? ', expanded folder' : ', collapsed folder') : ''}${fileStatus ? `, Git ${fileStatus.displayStatus}` : ''}${isActive ? ', active document' : ''}`;
+
   return (
     <div
       role="treeitem"
+      aria-level={depth}
       aria-expanded={isDirectory ? isExpanded : undefined}
       aria-selected={isSelected}
-      aria-label={node.name}
+      aria-label={accessibleLabel}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
+      onContextMenu={handleContextMenu}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -125,6 +138,8 @@ export const TreeNodeRow: React.FC<TreeNodeRowProps> = ({
         userSelect: 'none',
         transition: 'background-color var(--transition-fast)',
         margin: '1px 0',
+        outline: isSelected ? '1px solid var(--border-focus)' : 'none',
+        outlineOffset: '-1px',
       }}
     >
       {/* Expand/Collapse Chevron Indicator */}

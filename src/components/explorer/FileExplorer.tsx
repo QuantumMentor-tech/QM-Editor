@@ -4,6 +4,7 @@ import { useWorkspace } from '../../state/WorkspaceContext';
 import { FileExplorerTree } from './FileExplorerTree';
 import { IconButton } from '../common/IconButton';
 import { Button } from '../common/Button';
+import { EmptyState } from '../common/EmptyState';
 import { FolderOpen, RefreshCw, Target, Folder, FileText, Loader2, AlertCircle } from 'lucide-react';
 
 export const FileExplorer: React.FC = () => {
@@ -109,26 +110,16 @@ export const FileExplorer: React.FC = () => {
 
         {!workspaceRoot && !isLoading && (
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
-            <div
-              style={{
-                padding: '16px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-card, rgba(255, 255, 255, 0.03))',
-                border: '1px solid var(--border-color)',
-                textAlign: 'center',
-              }}
-            >
-              <FolderOpen size={32} style={{ color: 'var(--text-muted)', marginBottom: '8px' }} />
-              <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '4px', color: 'var(--text-primary)' }}>
-                No Folder Opened
-              </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                Open a workspace directory to browse files and code resources.
-              </div>
-              <Button onClick={() => openWorkspace()} variant="primary" icon={<FolderOpen size={14} />} style={{ width: '100%' }}>
-                Open Folder
-              </Button>
-            </div>
+            <EmptyState
+              icon={<FolderOpen size={36} />}
+              title="No Folder Opened"
+              description="Open a workspace directory to browse files, edit code, and inspect project resources."
+              action={
+                <Button variant="primary" icon={<FolderOpen size={14} />} onClick={() => openWorkspace()} style={{ width: '100%' }}>
+                  Open Folder
+                </Button>
+              }
+            />
 
             {/* Open Document Buffers Section */}
             {registry.openDocIds.length > 0 && (

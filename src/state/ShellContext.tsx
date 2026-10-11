@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ShellState, ThemeMode, ShellView, SidebarView, PanelView, EditorSettings } from '../types';
+import { ShellState, ThemeMode, ShellView, SidebarView, PanelView, EditorSettings, UiDensity } from '../types';
 import { PreferencesService, DEFAULT_EDITOR_SETTINGS } from '../services/PreferencesService';
+import { clampSidebarWidth, clampPanelHeight, DEFAULT_LAYOUT_CONSTRAINTS } from '../core/layout/LayoutConstraints';
+import { globalLayoutService } from '../core/layout/LayoutService';
 
 export interface ShellContextType {
   state: ShellState;
@@ -11,8 +13,14 @@ export interface ShellContextType {
   setSidebarWidth: (width: number) => void;
   setSidebarView: (view: SidebarView) => void;
   togglePanel: () => void;
+  setPanelHeight: (height: number) => void;
   setActivePanelView: (view: PanelView) => void;
   setActiveView: (view: ShellView) => void;
+  openWelcome: () => void;
+  closeWelcome: () => void;
+  setUiDensity: (density: UiDensity) => void;
+  toggleUiDensity: () => void;
+  resetLayout: () => void;
   openDialog: (title: string, content: React.ReactNode) => void;
   closeDialog: () => void;
   updateEditorSettings: (settings: Partial<EditorSettings>) => void;
@@ -36,6 +44,8 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     sidebarWidth: initialPrefs.sidebarWidth,
     sidebarView: 'explorer',
     panelOpen: false,
+    panelHeight: initialPrefs.panelHeight || DEFAULT_LAYOUT_CONSTRAINTS.defaultPanelHeight,
+    uiDensity: initialPrefs.uiDensity || 'comfortable',
     activePanelView: initialPrefs.activePanelView,
     activeView: 'editor',
     dialogOpen: false,
@@ -47,6 +57,10 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', state.theme);
   }, [state.theme]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-density', state.uiDensity || 'comfortable');
+  }, [state.uiDensity]);
 
   const setTheme = (theme: ThemeMode) => {
     setState((prev) => ({ ...prev, theme }));
@@ -62,6 +76,7 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setState((prev) => {
       const nextOpen = !prev.sidebarOpen;
       PreferencesService.savePreferences({ sidebarOpen: nextOpen });
+      globalLayoutService.setSidebarOpen(nextOpen);
       return { ...prev, sidebarOpen: nextOpen };
     });
   };
@@ -69,29 +84,88 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const setSidebarOpen = (sidebarOpen: boolean) => {
     setState((prev) => ({ ...prev, sidebarOpen }));
     PreferencesService.savePreferences({ sidebarOpen });
+    globalLayoutService.setSidebarOpen(sidebarOpen);
   };
 
   const setSidebarWidth = (sidebarWidth: number) => {
-    const clamped = Math.max(160, Math.min(500, sidebarWidth));
+    const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const clamped = clampSidebarWidth(sidebarWidth, windowWidth);
     setState((prev) => ({ ...prev, sidebarWidth: clamped }));
     PreferencesService.savePreferences({ sidebarWidth: clamped });
+    globalLayoutService.setSidebarWidth(clamped);
   };
 
   const setSidebarView = (sidebarView: SidebarView) => {
     setState((prev) => ({ ...prev, sidebarView, sidebarOpen: true }));
+    globalLayoutService.setSidebarOpen(true);
   };
 
   const togglePanel = () => {
-    setState((prev) => ({ ...prev, panelOpen: !prev.panelOpen }));
+    setState((prev) => {
+      const nextOpen = !prev.panelOpen;
+      globalLayoutService.setPanelOpen(nextOpen);
+      return { ...prev, panelOpen: nextOpen };
+    });
+  };
+
+  const setPanelHeight = (panelHeight: number) => {
+    const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const clamped = clampPanelHeight(panelHeight, windowHeight);
+    setState((prev) => ({ ...prev, panelHeight: clamped }));
+    PreferencesService.savePreferences({ panelHeight: clamped });
+    globalLayoutService.setPanelHeight(clamped);
   };
 
   const setActivePanelView = (activePanelView: PanelView) => {
     setState((prev) => ({ ...prev, activePanelView, panelOpen: true }));
     PreferencesService.savePreferences({ activePanelView });
+    globalLayoutService.setActivePanelView(activePanelView);
   };
 
   const setActiveView = (activeView: ShellView) => {
     setState((prev) => ({ ...prev, activeView }));
+  };
+
+  const openWelcome = () => {
+    setState((prev) => ({ ...prev, activeView: 'welcome' }));
+  };
+
+  const closeWelcome = () => {
+    setState((prev) => ({ ...prev, activeView: 'editor' }));
+  };
+
+  const setUiDensity = (uiDensity: UiDensity) => {
+    setState((prev) => ({ ...prev, uiDensity }));
+    PreferencesService.savePreferences({ uiDensity });
+    globalLayoutService.setUiDensity(uiDensity);
+  };
+
+  const toggleUiDensity = () => {
+    const nextDensity: UiDensity = state.uiDensity === 'comfortable' ? 'compact' : 'comfortable';
+    setUiDensity(nextDensity);
+  };
+
+  const resetLayout = () => {
+    const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const defaultWidth = clampSidebarWidth(DEFAULT_LAYOUT_CONSTRAINTS.defaultSidebarWidth, windowWidth);
+    const defaultHeight = clampPanelHeight(DEFAULT_LAYOUT_CONSTRAINTS.defaultPanelHeight, windowHeight);
+
+    globalLayoutService.resetLayout();
+    setState((prev) => ({
+      ...prev,
+      sidebarOpen: true,
+      sidebarWidth: defaultWidth,
+      panelOpen: false,
+      panelHeight: defaultHeight,
+      uiDensity: 'comfortable',
+    }));
+    PreferencesService.savePreferences({
+      sidebarOpen: true,
+      sidebarWidth: defaultWidth,
+      panelHeight: defaultHeight,
+      uiDensity: 'comfortable',
+    });
   };
 
   const openDialog = (dialogTitle: string, dialogContent: React.ReactNode) => {
@@ -163,8 +237,14 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSidebarWidth,
         setSidebarView,
         togglePanel,
+        setPanelHeight,
         setActivePanelView,
         setActiveView,
+        openWelcome,
+        closeWelcome,
+        setUiDensity,
+        toggleUiDensity,
+        resetLayout,
         openDialog,
         closeDialog,
         updateEditorSettings,

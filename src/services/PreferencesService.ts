@@ -23,6 +23,8 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   sidebarOpen: true,
   sidebarWidth: 260,
   activePanelView: 'output',
+  panelHeight: 240,
+  uiDensity: 'comfortable',
   editor: DEFAULT_EDITOR_SETTINGS,
 };
 
@@ -182,9 +184,20 @@ export class PreferencesService {
     const activePanelView: PanelView =
       obj.activePanelView === 'output' ||
       obj.activePanelView === 'problems' ||
-      obj.activePanelView === 'terminal'
+      obj.activePanelView === 'terminal' ||
+      obj.activePanelView === 'tasks'
         ? obj.activePanelView
         : DEFAULT_PREFERENCES.activePanelView;
+
+    const panelHeight: number =
+      typeof obj.panelHeight === 'number' && obj.panelHeight >= 120 && obj.panelHeight <= 600
+        ? Math.round(obj.panelHeight)
+        : DEFAULT_PREFERENCES.panelHeight || 240;
+
+    const uiDensity =
+      obj.uiDensity === 'compact' || obj.uiDensity === 'comfortable'
+        ? obj.uiDensity
+        : DEFAULT_PREFERENCES.uiDensity || 'comfortable';
 
     const editor = this.validateEditorSettings(obj.editor);
 
@@ -193,6 +206,8 @@ export class PreferencesService {
       sidebarOpen,
       sidebarWidth,
       activePanelView,
+      panelHeight,
+      uiDensity,
       editor,
     };
   }

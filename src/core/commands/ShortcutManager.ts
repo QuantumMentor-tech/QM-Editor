@@ -6,17 +6,53 @@ export class ShortcutManager {
     return typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
   }
 
+  public static isEditableElement(target: EventTarget | null): boolean {
+    if (!target || !(target instanceof HTMLElement)) return false;
+    const tagName = target.tagName.toLowerCase();
+    if (tagName === 'input' || tagName === 'textarea') {
+      const type = (target as HTMLInputElement).type?.toLowerCase();
+      return !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(type);
+    }
+    return Boolean(target.isContentEditable || target.contentEditable === 'true');
+  }
+
   public static handleKeyDown(
     e: KeyboardEvent,
     ctx: CommandContext,
     registry: CommandRegistry = globalCommandRegistry
   ): boolean {
     const isMod = this.isMac() ? e.metaKey : e.ctrlKey;
+    const inEditable = this.isEditableElement(e.target);
+
+    // Protect standard browser text editing inside input fields (Rule 43)
+    if (inEditable) {
+      const key = e.key.toLowerCase();
+      const isSelectAll = isMod && key === 'a' && !e.shiftKey && !e.altKey;
+      const isCopy = isMod && key === 'c' && !e.shiftKey && !e.altKey;
+      const isPaste = isMod && key === 'v' && !e.shiftKey && !e.altKey;
+      const isCut = isMod && key === 'x' && !e.shiftKey && !e.altKey;
+      const isUndo = isMod && key === 'z' && !e.shiftKey && !e.altKey;
+      const isRedo = isMod && (key === 'y' || (key === 'z' && e.shiftKey)) && !e.altKey;
+
+      if (isSelectAll || isCopy || isPaste || isCut || isUndo || isRedo) {
+        return false;
+      }
+    }
 
     for (const command of registry.getAll()) {
       if (!command.shortcut) continue;
 
       if (this.matchesShortcut(e, command.shortcut, isMod)) {
+        // Prevent editor buffer commands from stealing input typing
+        if (
+          inEditable &&
+          (command.category === 'editor' ||
+            command.id.startsWith('editor.') ||
+            command.id.startsWith('document.'))
+        ) {
+          continue;
+        }
+
         e.preventDefault();
         e.stopPropagation();
         registry.execute(command.id, ctx);

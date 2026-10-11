@@ -1,7 +1,10 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { TreeNodeModel } from '../../types';
 import { TreeNodeRow } from './TreeNodeRow';
 import { useExplorer } from '../../state/ExplorerContext';
+import { globalFocusManager } from '../../core/accessibility/FocusManager';
+import { Folder } from 'lucide-react';
+import { EmptyState } from '../common/EmptyState';
 
 export interface VisibleNodeItem {
   node: TreeNodeModel;
@@ -20,6 +23,11 @@ export const FileExplorerTree: React.FC = () => {
   } = useExplorer();
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const unregister = globalFocusManager.registerRegion('explorer', () => containerRef.current);
+    return unregister;
+  }, []);
 
   /**
    * Flattens visible tree nodes according to expanded folder set
@@ -112,6 +120,18 @@ export const FileExplorerTree: React.FC = () => {
   };
 
   if (!workspaceRoot) return null;
+
+  if (visibleNodes.length === 0) {
+    return (
+      <div style={{ padding: '24px 16px' }}>
+        <EmptyState
+          icon={<Folder size={32} />}
+          title="No files to display"
+          description="This workspace folder contains no files or items matching display criteria."
+        />
+      </div>
+    );
+  }
 
   return (
     <div

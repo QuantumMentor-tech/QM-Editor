@@ -6,6 +6,8 @@ import { useSearch } from '../../state/SearchContext';
 import { SearchPanel } from '../search/SearchPanel';
 
 import { useNavigation } from '../../state/NavigationContext';
+import { useContextMenu } from '../../state/ContextMenuContext';
+import { globalFocusManager } from '../../core/accessibility/FocusManager';
 
 export interface EditorSurfaceProps {
   document: DocumentModel;
@@ -18,6 +20,7 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
   const { state: shellState } = useShellState();
   const { matches, currentMatchIndex, currentMatch, isOpen } = useSearch();
   const { setCurrentPos, pushLocation } = useNavigation();
+  const { openContextMenu } = useContextMenu();
 
   const docIdRef = useRef<string>(document.id);
   docIdRef.current = document.id;
@@ -66,6 +69,17 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
     // Re-mount only if active document ID changes
   }, [document.id, pushLocation, setCurrentPos]);
 
+  // Register editor region with global focus manager (Rule 41)
+  useEffect(() => {
+    const unregister = globalFocusManager.registerRegion('editor', () => {
+      return (
+        containerRef.current?.querySelector<HTMLElement>('.cm-content') ||
+        containerRef.current
+      );
+    });
+    return unregister;
+  }, []);
+
   // Sync content programmatically when active document content changes from outside
   useEffect(() => {
     if (adapterRef.current) {
@@ -108,6 +122,31 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
     };
   }, []);
 
+  // Handle editor command events (undo, redo, selectAll, copy, cut, paste)
+  useEffect(() => {
+    const handleUndo = () => adapterRef.current?.undo();
+    const handleRedo = () => adapterRef.current?.redo();
+    const handleSelectAll = () => adapterRef.current?.selectAll();
+    const handleCopy = () => {
+      const text = adapterRef.current?.getSelectedText();
+      if (text && navigator.clipboard) {
+        navigator.clipboard.writeText(text);
+      }
+    };
+
+    window.addEventListener('qm:editor:undo', handleUndo);
+    window.addEventListener('qm:editor:redo', handleRedo);
+    window.addEventListener('qm:editor:selectall', handleSelectAll);
+    window.addEventListener('qm:editor:copy', handleCopy);
+
+    return () => {
+      window.removeEventListener('qm:editor:undo', handleUndo);
+      window.removeEventListener('qm:editor:redo', handleRedo);
+      window.removeEventListener('qm:editor:selectall', handleSelectAll);
+      window.removeEventListener('qm:editor:copy', handleCopy);
+    };
+  }, []);
+
   // Highlight search matches in editor view
   useEffect(() => {
     if (!adapterRef.current) return;
@@ -128,8 +167,20 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
     }
   }, [currentMatch, isOpen]);
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    openContextMenu(
+      'contextmenu:editor',
+      { x: e.clientX, y: e.clientY },
+      { documentId: document.id, doc: document }
+    );
+  };
+
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+    <div
+      onContextMenu={handleContextMenu}
+      style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}
+    >
       {/* Search & Replace Panel Overlay */}
       <SearchPanel />
 

@@ -21,7 +21,7 @@ import {
   EditorSelection,
   Extension,
 } from '@codemirror/state';
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, selectAll } from '@codemirror/commands';
 import {
   bracketMatching,
   foldGutter,
@@ -460,6 +460,18 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
     const mainSel = this.view.state.selection.main;
     if (mainSel.empty) return '';
     return this.view.state.sliceDoc(mainSel.from, mainSel.to);
+  }
+
+  public undo(): boolean {
+    return this.view ? undo(this.view) : false;
+  }
+
+  public redo(): boolean {
+    return this.view ? redo(this.view) : false;
+  }
+
+  public selectAll(): boolean {
+    return this.view ? selectAll(this.view) : false;
   }
 
   public focus(): void {

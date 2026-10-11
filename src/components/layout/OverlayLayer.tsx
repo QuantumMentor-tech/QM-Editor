@@ -3,6 +3,9 @@ import { Dialog } from '../common/Dialog';
 import { Button } from '../common/Button';
 import { useShellState } from '../../state/ShellContext';
 import { useWorkspace } from '../../state/WorkspaceContext';
+import { ConfirmDialog } from '../feedback/ConfirmDialog';
+import { ToastHost } from '../feedback/ToastHost';
+import { ProgressHost } from '../feedback/ProgressHost';
 
 export const OverlayLayer: React.FC = () => {
   const { state, closeDialog } = useShellState();
@@ -28,14 +31,19 @@ export const OverlayLayer: React.FC = () => {
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
             <Button onClick={cancelDirtyClose} variant="secondary">
-              Cancel
+               Cancel
             </Button>
             <Button onClick={confirmDiscardDirty} variant="destructive">
-              Discard Changes
+               Discard Changes
             </Button>
           </div>
         </div>
       </Dialog>
+
+      {/* Unified Feedback Overlays */}
+      <ConfirmDialog />
+      <ToastHost />
+      <ProgressHost />
     </>
   );
 };
