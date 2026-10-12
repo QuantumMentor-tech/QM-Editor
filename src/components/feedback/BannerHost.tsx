@@ -23,7 +23,7 @@ export const BannerHost: React.FC = () => {
   if (banners.length === 0) return null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', zIndex: 90 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', zIndex: 'var(--z-banner, 3000)' as unknown as number }}>
       {banners.map((banner) => (
         <div
           key={banner.id}

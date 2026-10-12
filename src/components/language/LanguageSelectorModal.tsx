@@ -76,7 +76,7 @@ export const LanguageSelectorModal: React.FC<LanguageSelectorModalProps> = ({ is
         right: 0,
         bottom: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        zIndex: 200,
+        zIndex: 'var(--z-modal, 1000)' as unknown as number,
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'center',

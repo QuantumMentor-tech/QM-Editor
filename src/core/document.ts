@@ -82,3 +82,26 @@ export const markDocumentSaved = (
     lastSavedTimestamp: Date.now(),
   };
 };
+
+export const applyEditTransaction = (
+  document: DocumentModel,
+  transaction: import('./edit').EditTransaction,
+  options?: import('./edit').ApplyTransactionOptions
+): Promise<{ document: DocumentModel; transaction: import('./edit').CommittedEditTransaction }> => {
+  return import('./edit').then((m) => m.globalEditTransactionManager.applyTransaction(document, transaction, options));
+};
+
+export const applySingleEdit = (
+  document: DocumentModel,
+  edit: import('./edit').SingleTextEdit,
+  origin: import('./edit').TransactionOrigin = 'user'
+): Promise<{ document: DocumentModel; transaction: import('./edit').CommittedEditTransaction }> => {
+  return import('./edit').then((m) =>
+    m.globalEditTransactionManager.applyTransaction(document, {
+      documentId: document.id,
+      baseRevision: document.contentRevision,
+      changes: [edit],
+      origin,
+    })
+  );
+};

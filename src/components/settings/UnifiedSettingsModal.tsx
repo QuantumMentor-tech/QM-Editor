@@ -432,7 +432,7 @@ export const UnifiedSettingsModal: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 100,
+            zIndex: 'var(--z-modal, 1000)' as unknown as number,
           }}
         >
           <div

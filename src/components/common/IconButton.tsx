@@ -93,6 +93,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
       aria-pressed={active ? 'true' : 'false'}
       title={props.title || ariaLabel}
       disabled={disabled}
+      className={`qm-icon-button qm-icon-button-${variant} qm-icon-button-${size} ${active ? 'qm-icon-button-active' : ''} ${props.className || ''}`.trim()}
       style={baseStyles}
       {...props}
     >

@@ -3,7 +3,7 @@
  * Phase 1, Step 20 — Tasks, Build, Run & Problem Matcher Foundation
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useTasks } from '../../state/TaskContext';
 import { useWorkspace } from '../../state/WorkspaceContext';
 import { useContextMenu } from '../../state/ContextMenuContext';
@@ -11,15 +11,53 @@ import { AlertCircle, AlertTriangle, Info, Trash2, Filter, FileText, CheckCircle
 import { Problem, ProblemSeverity } from '../../core/tasks/TaskTypes';
 import { globalFocusManager } from '../../core/accessibility/FocusManager';
 import { EmptyState } from '../common/EmptyState';
+import { globalDiagnosticService, diagnosticToProblem, Diagnostic } from '../../core/diagnostics';
 
 export const ProblemsPanel: React.FC = () => {
-  const { allProblems, errorCount, warningCount, clearProblems } = useTasks();
+  const { allProblems, clearProblems } = useTasks();
   const { openContextMenu } = useContextMenu();
   const workspaceContext = useWorkspace();
   const [filterSeverity, setFilterSeverity] = useState<string>('all');
   const [searchFilter, setSearchFilter] = useState<string>('');
+  const [serviceDiagnostics, setServiceDiagnostics] = useState<Diagnostic[]>(() =>
+    globalDiagnosticService.getDiagnostics()
+  );
 
-  const filteredProblems = allProblems.filter((p) => {
+  useEffect(() => {
+    const unsubscribe = globalDiagnosticService.subscribe(() => {
+      setServiceDiagnostics(globalDiagnosticService.getDiagnostics());
+    });
+    return unsubscribe;
+  }, []);
+
+  // Merge task problems and diagnostics, deduplicating by ID
+  const combinedProblems = useMemo(() => {
+    const map = new Map<string, Problem>();
+    for (const prob of allProblems) {
+      map.set(prob.id, prob);
+    }
+    for (const diag of serviceDiagnostics) {
+      if (!map.has(diag.id)) {
+        map.set(diag.id, diagnosticToProblem(diag));
+      }
+    }
+    return Array.from(map.values());
+  }, [allProblems, serviceDiagnostics]);
+
+  const errorCount = useMemo(() => {
+    return combinedProblems.filter((p) => p.severity === 'error').length;
+  }, [combinedProblems]);
+
+  const warningCount = useMemo(() => {
+    return combinedProblems.filter((p) => p.severity === 'warning').length;
+  }, [combinedProblems]);
+
+  const handleClearAll = () => {
+    clearProblems();
+    globalDiagnosticService.clear();
+  };
+
+  const filteredProblems = combinedProblems.filter((p) => {
     if (filterSeverity !== 'all' && p.severity !== filterSeverity) return false;
     if (searchFilter.trim()) {
       const q = searchFilter.toLowerCase();
@@ -171,9 +209,9 @@ export const ProblemsPanel: React.FC = () => {
             }}
           />
 
-          {allProblems.length > 0 && (
+          {combinedProblems.length > 0 && (
             <button
-              onClick={clearProblems}
+              onClick={handleClearAll}
               title="Clear All Problems"
               style={{
                 display: 'flex',
@@ -290,7 +328,7 @@ export const ProblemsPanel: React.FC = () => {
           ))
         ) : (
           <div style={{ padding: '32px 16px' }}>
-            {allProblems.length === 0 ? (
+            {combinedProblems.length === 0 ? (
               <EmptyState
                 icon={<CheckCircle2 size={32} style={{ color: 'var(--text-success, #2ea043)' }} />}
                 title="No problems detected in workspace"

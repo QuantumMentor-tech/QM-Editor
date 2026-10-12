@@ -95,7 +95,7 @@ export const ConfirmDialog: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 10000,
+        zIndex: 'var(--z-modal, 1000)' as unknown as number,
         backdropFilter: 'blur(3px)',
       }}
       onClick={handleCancel}

@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusIndicator, StatusType } from '../common/StatusIndicator';
 import { useWorkspace } from '../../state/WorkspaceContext';
 import { useShellState } from '../../state/ShellContext';
 import { useCommand } from '../../state/CommandContext';
 import { useNavigation } from '../../state/NavigationContext';
 import { useSourceControl } from '../../state/SourceControlContext';
-import { Settings, GitBranch } from 'lucide-react';
+import { Settings, GitBranch, AlertCircle, AlertTriangle } from 'lucide-react';
+import { globalDiagnosticService, DiagnosticSummary } from '../../core/diagnostics';
 
 export const StatusBar: React.FC = () => {
   const { activeDoc, saveStatus, lastErrorMessage } = useWorkspace();
@@ -13,6 +14,17 @@ export const StatusBar: React.FC = () => {
   const { executeCommand } = useCommand();
   const { currentPos } = useNavigation();
   const { state: scState } = useSourceControl();
+  const [diagSummary, setDiagSummary] = useState<DiagnosticSummary>(() =>
+    globalDiagnosticService.getSummary()
+  );
+
+  useEffect(() => {
+    const unsubscribe = globalDiagnosticService.subscribe((e) => {
+      setDiagSummary(e.summary);
+    });
+    return unsubscribe;
+  }, []);
+
   const settings = shellState.editorSettings;
 
   const getStatusType = (): StatusType => {
@@ -79,6 +91,49 @@ export const StatusBar: React.FC = () => {
             <span>•</span>
           </>
         )}
+        <button
+          onClick={() => executeCommand('task.showProblems')}
+          title="Problems in workspace"
+          aria-label={`${diagSummary.errorCount} Errors, ${diagSummary.warningCount} Warnings`}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'inherit',
+            font: 'inherit',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '2px 4px',
+            borderRadius: 'var(--radius-sm)',
+          }}
+        >
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '3px',
+              color: diagSummary.errorCount > 0 ? '#f85149' : 'inherit',
+              fontWeight: diagSummary.errorCount > 0 ? 600 : 'normal',
+            }}
+          >
+            <AlertCircle size={12} />
+            <span>{diagSummary.errorCount}</span>
+          </span>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '3px',
+              color: diagSummary.warningCount > 0 ? '#d29922' : 'inherit',
+              fontWeight: diagSummary.warningCount > 0 ? 600 : 'normal',
+            }}
+          >
+            <AlertTriangle size={12} />
+            <span>{diagSummary.warningCount}</span>
+          </span>
+        </button>
+        <span>•</span>
         <span style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {filePath}
         </span>

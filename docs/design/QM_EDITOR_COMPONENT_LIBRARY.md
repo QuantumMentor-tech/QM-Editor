@@ -1,7 +1,8 @@
 # QM Editor — Professional UI Component Library & Design System Specification
 
-> **Phase 03 — Step 26**  
-> **Document Status:** Active & Standardized Source of Truth
+**Version:** 3.0.0 (Phase 03 Final Consolidated Release)  
+**Status:** Approved & Hardened Component Architecture  
+**Last Updated:** October 12, 2026  
 
 ---
 
@@ -13,6 +14,7 @@ The **QM Editor UI Component Library** is the foundational visual and interactiv
 - Unified Settings and Modals
 - Terminal, Source Control, Tasks, and Problems
 - Notifications, Progress, and Feedback Hosts
+- Start Center and Empty States
 
 ### Layer Separation Model
 ```
@@ -26,7 +28,8 @@ The **QM Editor UI Component Library** is the foundational visual and interactiv
 │ 1. Primitives (Button, IconButton, Input, Badge, etc.) │
 └────────────────────────────────────────────────────────┘
 ```
-**Core Boundary:** Business logic, document editing, and process execution must **never** be placed inside UI primitives. Primitives emit interaction events and accept presentation props; commands and services execute business logic.
+
+**Core Boundary:** Business logic, document buffers, and process execution must **never** be placed inside UI primitives. Primitives emit interaction events and accept presentation props; commands and services execute business logic.
 
 ---
 
@@ -34,36 +37,36 @@ The **QM Editor UI Component Library** is the foundational visual and interactiv
 
 All primitives and composites are centralized and exported from `src/components/common/index.ts`:
 
-| Component | Category | Purpose | Key Props & Contract |
-| :--- | :--- | :--- | :--- |
-| **`Button`** | Primitive | Primary and secondary user actions | `variant` (`primary`, `secondary`, `ghost`, `outline`, `destructive`), `size` (`sm`, `md`, `lg`), `icon`, `trailingIcon`, `isLoading`, `loadingText`, `fullWidth` |
-| **`IconButton`** | Primitive | Icon-only action button | `icon`, `aria-label` (required), `variant`, `size`, `active` (`aria-pressed`) |
-| **`Input`** | Primitive | Single-line text input | `inputSize`, `variant` (`default`, `error`, `warning`), `leadingIcon`, `trailingIcon`, `clearable`, `onClear`, `isInvalid` |
-| **`Textarea`** | Primitive | Multiline text input | `textareaSize`, `variant`, `resize` (`none`, `vertical`, `horizontal`, `both`), `isInvalid` |
-| **`FormField`** | Composite | Accessible form label/description/error wrapper | `id`, `label`, `description`, `error`, `warning`, `required`, automatic `aria-describedby` & `aria-invalid` binding |
-| **`Select`** | Primitive | Accessible option selection | `options: SelectOption[]`, `selectSize`, `variant`, `placeholder`, `value`, `onChange` |
-| **`Checkbox`** | Primitive | Boolean selection with label | `checked`, `indeterminate`, `onChange`, `label`, `description`, `isInvalid` |
-| **`Toggle`** | Primitive | Immediate boolean setting switch | `checked`, `onChange`, `label`, `description`, `size`, `role="switch"`, `aria-checked` |
-| **`RadioGroup`** | Composite | Mutually exclusive options group | `name`, `options: RadioOption[]`, `value`, `onChange`, `orientation`, roving keyboard arrow navigation |
-| **`Slider`** | Primitive | Numeric range adjustment | `min`, `max`, `step`, `value`, `onChange`, `label`, `showValue`, `formatValue` |
-| **`Badge`** | Primitive | Compact status badge / chip | `variant` (`primary`, `secondary`, `accent`, `warning`, `success`, `error`, `neutral`, `muted`), `size` (`sm`, `md`), `icon` |
-| **`StatusIndicator`** | Primitive | Live state indicator (non-color redundant) | `status` (`saved`, `dirty`, `error`, `syncing`, `info`, `warning`, `offline`, `online`), `compact`, `role="status"` |
-| **`Tooltip`** | Composite | Delayed contextual tooltip | `content`, `children`, `placement` (`top`, `bottom`, `left`, `right`), `delayMs`, `role="tooltip"` |
-| **`Popover`** | Composite | Contextual non-modal popup | `isOpen`, `onClose`, `children`, `anchorEl`, escape dismissal, outside-click close |
-| **`Divider`** | Primitive | Visual and structural separator | `orientation` (`horizontal`, `vertical`), `spacing` (`none`, `sm`, `md`, `lg`), `label`, `role="separator"` |
-| **`Card`** | Composite | Structured content container | `Card`, `CardHeader` (title, description, actions), `CardContent`, `CardFooter` |
-| **`Panel`** | Composite | Flexible collapsible panel | `Panel`, `PanelHeader` (leading, title, actions), `PanelContent`, `PanelFooter` |
-| **`Dialog`** | Composite | Modal dialog with focus trap | `isOpen`, `onClose`, `title`, `children`, `FocusTrap` integration, `var(--z-modal)` |
-| **`List`** | Composite | Semantic list container | `List` (`role="list"`), `ListItem` (`leading`, `title`, `secondary`, `trailing`, `selected`, `onClick`) |
-| **`Loading`** | Primitive | Activity feedback | `Spinner` (`size`, `label`, `aria-live="polite"`), `Skeleton` (`width`, `height`, `borderRadius`) |
-| **`EmptyState`** | Pattern | Empty / zero-data placeholder | `icon`, `title`, `description`, `action`, `secondaryAction` |
-| **`ErrorState`** | Pattern | Diagnostic failure placeholder | `title`, `message`, `details`, `onRetry`, `action`, expandable details toggle |
+| Component | Category | Purpose | Key Props & Contract | Standardized CSS Class |
+| :--- | :--- | :--- | :--- | :--- |
+| **`Button`** | Primitive | Primary and secondary user actions | `variant` (`primary`, `secondary`, `ghost`, `outline`, `destructive`), `size` (`sm`, `md`, `lg`), `icon`, `trailingIcon`, `isLoading`, `loadingText`, `fullWidth` | `.qm-button`, `.qm-button-[variant]`, `.qm-button-[size]` |
+| **`IconButton`** | Primitive | Icon-only action button | `icon`, `aria-label` (required), `variant`, `size`, `active` (`aria-pressed`) | `.qm-icon-button`, `.qm-icon-button-[variant]` |
+| **`Input`** | Primitive | Single-line text input | `inputSize`, `variant` (`default`, `error`, `warning`), `leadingIcon`, `trailingIcon`, `clearable`, `onClear`, `isInvalid` | `input[type="text"]` |
+| **`Textarea`** | Primitive | Multiline text input | `textareaSize`, `variant`, `resize` (`none`, `vertical`, `horizontal`, `both`), `isInvalid` | `textarea` |
+| **`FormField`** | Composite | Accessible form label/description/error wrapper | `id`, `label`, `description`, `error`, `warning`, `required`, automatic `aria-describedby` & `aria-invalid` binding | Form layout wrapper |
+| **`Select`** | Primitive | Accessible option selection | `options: SelectOption[]`, `selectSize`, `variant`, `placeholder`, `value`, `onChange` | `select` |
+| **`Checkbox`** | Primitive | Boolean selection with label | `checked`, `indeterminate`, `onChange`, `label`, `description`, `isInvalid` | Accessible checkbox |
+| **`Toggle`** | Primitive | Immediate boolean setting switch | `checked`, `onChange`, `label`, `description`, `size`, `role="switch"`, `aria-checked` | Accessible switch |
+| **`RadioGroup`** | Composite | Mutually exclusive options group | `name`, `options: RadioOption[]`, `value`, `onChange`, `orientation`, roving keyboard arrow navigation | Roving tabindex group |
+| **`Slider`** | Primitive | Numeric range adjustment | `min`, `max`, `step`, `value`, `onChange`, `label`, `showValue`, `formatValue` | Range slider |
+| **`Badge`** | Primitive | Compact status badge / chip | `variant` (`primary`, `secondary`, `accent`, `warning`, `success`, `error`, `neutral`, `muted`), `size` (`sm`, `md`), `icon` | Status badge chip |
+| **`StatusIndicator`** | Primitive | Live state indicator (non-color redundant) | `status` (`saved`, `dirty`, `error`, `syncing`, `info`, `warning`, `offline`, `online`), `compact`, `role="status"` | Status dot with symbol |
+| **`Tooltip`** | Composite | Delayed contextual tooltip | `content`, `children`, `placement` (`top`, `bottom`, `left`, `right`), `delayMs`, `role="tooltip"` | Floating tooltip |
+| **`Popover`** | Composite | Contextual non-modal popup | `isOpen`, `onClose`, `children`, `anchorEl`, escape dismissal, outside-click close | Floating popover |
+| **`Divider`** | Primitive | Visual and structural separator | `orientation` (`horizontal`, `vertical`), `spacing` (`none`, `sm`, `md`, `lg`), `label`, `role="separator"` | Divider line |
+| **`Card`** | Composite | Structured content container | `Card`, `CardHeader` (title, description, actions), `CardContent`, `CardFooter`, `onClick` | `.qm-card-clickable` (when interactive) |
+| **`Panel`** | Composite | Flexible collapsible panel | `Panel`, `PanelHeader` (leading, title, actions), `PanelContent`, `PanelFooter` | `.qm-panel-header` |
+| **`Dialog`** | Composite | Modal dialog with focus trap | `isOpen`, `onClose`, `title`, `children`, `FocusTrap` integration, `var(--z-modal)` | Modal dialog |
+| **`List`** | Composite | Semantic list container | `List` (`role="list"`), `ListItem` (`leading`, `title`, `secondary`, `trailing`, `selected`, `onClick`) | `.qm-list-item` |
+| **`Loading`** | Primitive | Activity feedback | `Spinner` (`size`, `label`, `aria-live="polite"`), `Skeleton` (`width`, `height`, `borderRadius`) | Accessible spinner |
+| **`EmptyState`** | Pattern | Empty / zero-data placeholder | `icon`, `title`, `description`, `action`, `secondaryAction` | Centered empty banner |
+| **`ErrorState`** | Pattern | Diagnostic failure placeholder | `title`, `message`, `details`, `onRetry`, `action`, expandable details toggle | Centered error banner |
 
 ---
 
 ## 3. Standard Interaction States
 
-Every interactive component supports a standardized set of states powered by CSS custom properties:
+Every interactive component supports a standardized set of states powered by CSS custom properties and standardized CSS classes:
 
 ```
 [Default] ──> [Hover] ──> [Focus-Visible] ──> [Active/Pressed]
@@ -74,22 +77,32 @@ Every interactive component supports a standardized set of states powered by CSS
 ```
 
 1. **Default:** Clean, high-contrast text and border tokens (`--text-primary`, `--border-color`).
-2. **Hover:** Subtle background shift (`--bg-hover`) without jarring layout shifts or color shifts.
+2. **Hover:** Subtle background shift (`--bg-hover`, `.qm-button:hover`, `.qm-icon-button:hover`, `.qm-list-item:hover`) without jarring layout shifts or color shifts.
 3. **Focus-Visible:** Mandatory high-contrast outline (`2px solid var(--border-focus)`, `outline-offset: 2px`). In forced colors / high-contrast OS mode, maps to `Highlight`.
-4. **Active / Pressed:** Visual depression / color change. For toggles, exposes `aria-pressed="true"`.
+4. **Active / Pressed:** Visual depression / color change (`--accent-active`, `.qm-button:active`). For toggles, exposes `aria-pressed="true"`.
 5. **Disabled:** Reduced opacity (`0.5` - `0.6`), `cursor: not-allowed`, interactive listeners disabled.
 6. **Loading:** Exposes `aria-busy="true"`, disables re-activation, displays animated spinner with accessible live text.
 7. **Error / Warning:** Semantic border color (`var(--color-error)` / `var(--color-warning)`), companion icon or text, and `aria-invalid="true"`.
 
 ---
 
-## 4. Theme & High-Contrast Adaptation
+## 4. Developer Quick-Answers Guide
 
-All components strictly consume CSS design tokens defined in `src/index.css`:
-- **Dark Mode (Default):** Deep dark palette (`#0f172a`, `#1e293b`, `#090d16`).
-- **Light Mode (`[data-theme="light"]`):** Clean light palette (`#f8fafc`, `#ffffff`, `#e2e8f0`).
-- **Forced Colors / Windows High Contrast:** Respects OS color overrides (`forced-colors: active`).
-- **Reduced Motion:** When `@media (prefers-reduced-motion: reduce)` is active, animations and transitions collapse to `0.01ms`.
+Future engineering agents and developers should use these direct architectural patterns:
+
+| Question | Standard Solution |
+| :--- | :--- |
+| **Which Button should I use?** | Import `{ Button }` from `src/components/common`. Use `variant="primary"` for main dialog/form submission, `variant="secondary"` for standard actions, `variant="ghost"` for toolbars, or `variant="destructive"` for deletions. |
+| **Which dialog should I use?** | For general modal workflows, use `{ Dialog }` from `src/components/common`. For destructive confirmations, use `{ ConfirmDialog }` from `src/components/feedback` or `useFeedback().confirm()`. Never use `window.confirm()`. |
+| **How do I show an error?** | For transient errors, call `useFeedback().showToast({ message, severity: 'error' })`. For persistent component failures, render `<ErrorState title="..." message="..." onRetry={...} />`. |
+| **How do I show progress?** | For inline loading, use `<Spinner size="sm" />`. For long-running background tasks, call `useFeedback().startProgress({ title, determinate: false })`. |
+| **How do I add a menu command?** | Register your command in `globalCommandRegistry.registerCommand({...})` in `src/core/commands/defaultCommands.ts`. It automatically becomes accessible via MenuBar, Command Palette, and Quick Open. |
+| **How do I add a shortcut?** | Specify `defaultShortcut: 'Mod+Shift+...'` in your command registration, or bind it directly via `globalShortcutManager.registerShortcut({...})`. |
+| **How do I add a setting?** | Register the setting schema in `SettingsRegistry.registerSetting({...})` with category, type, and default value. It automatically renders in `UnifiedSettingsModal`. |
+| **How do I add a new panel?** | Extend `PanelTabId` in `src/state/ShellContext.tsx`, add your panel to `SecondaryPanel.tsx`, and render standard header using `PanelHeader`. |
+| **How do I create an accessible input?** | Wrap `<Input id="my-field" ... />` inside `<FormField id="my-field" label="My Field" error={error}>`. Automatic ARIA attributes are wired immediately. |
+| **How do I add a new empty state?** | Render `<EmptyState icon={Folder} title="No Items" description="Add items to get started" action={<Button ...>Add Item</Button>} />`. |
+| **How do I persist layout state?** | Centralized layout state automatically persists to `localStorage` through `ShellContext` and `SessionService`. Never write custom layout persistence keys. |
 
 ---
 

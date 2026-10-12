@@ -4,7 +4,7 @@
 
 export type ThemeMode = 'dark' | 'light';
 export type ShellView = 'editor' | 'settings' | 'extensions' | 'welcome';
-export type SidebarView = 'explorer' | 'scm';
+export type SidebarView = 'explorer' | 'scm' | 'outline';
 export type PanelView = 'output' | 'problems' | 'terminal' | 'tasks';
 
 export type WordWrapMode = 'off' | 'on';

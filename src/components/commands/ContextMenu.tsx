@@ -133,7 +133,7 @@ export const ContextMenu: React.FC = () => {
         position: 'fixed',
         top: `${adjustedPos.y}px`,
         left: `${adjustedPos.x}px`,
-        zIndex: 9999,
+        zIndex: 'var(--z-contextmenu, 500)' as unknown as number,
         backgroundColor: 'var(--bg-secondary)',
         border: '1px solid var(--border-color)',
         borderRadius: 'var(--radius-sm)',

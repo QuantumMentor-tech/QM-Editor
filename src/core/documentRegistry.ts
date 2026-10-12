@@ -154,3 +154,17 @@ export const saveDocumentState = (
     },
   };
 };
+
+export const applyCommittedTransactionToRegistry = (
+  state: DocumentRegistryState,
+  updatedDoc: DocumentModel
+): DocumentRegistryState => {
+  if (!state.documents[updatedDoc.id]) return state;
+  return {
+    ...state,
+    documents: {
+      ...state.documents,
+      [updatedDoc.id]: updatedDoc,
+    },
+  };
+};

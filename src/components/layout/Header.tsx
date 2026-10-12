@@ -23,7 +23,7 @@ export const Header: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 12px',
-        zIndex: 10,
+        zIndex: 'var(--z-header, 20)',
         gap: '12px',
       }}
     >

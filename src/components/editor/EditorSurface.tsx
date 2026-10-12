@@ -8,6 +8,7 @@ import { SearchPanel } from '../search/SearchPanel';
 import { useNavigation } from '../../state/NavigationContext';
 import { useContextMenu } from '../../state/ContextMenuContext';
 import { globalFocusManager } from '../../core/accessibility/FocusManager';
+import { globalDiagnosticService, normalizeDiagnosticUri } from '../../core/diagnostics';
 
 export interface EditorSurfaceProps {
   document: DocumentModel;
@@ -166,6 +167,38 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
       adapterRef.current.selectAndRevealRange(currentMatch.from, currentMatch.to);
     }
   }, [currentMatch, isOpen]);
+
+  // Sync document diagnostics with editor squiggles and annotations
+  useEffect(() => {
+    if (!adapterRef.current) return;
+
+    const uri = document.filePath || document.title || document.id;
+
+    const syncDiagnostics = () => {
+      if (!adapterRef.current) return;
+      const diags = globalDiagnosticService.getDiagnostics(uri);
+      adapterRef.current.setDiagnostics(diags);
+    };
+
+    // Initial sync
+    syncDiagnostics();
+
+    // Subscribe to diagnostic updates
+    const unsubscribe = globalDiagnosticService.subscribe((event) => {
+      const normalizedTarget = normalizeDiagnosticUri(uri);
+      if (
+        event.type === 'cleared' ||
+        event.uris.length === 0 ||
+        event.uris.some((u) => normalizeDiagnosticUri(u) === normalizedTarget)
+      ) {
+        syncDiagnostics();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [document.id, document.filePath, document.title, document.content]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();

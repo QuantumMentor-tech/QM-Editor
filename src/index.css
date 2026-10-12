@@ -1,6 +1,6 @@
-/* QM Editor Design System Tokens */
+/* QM Editor Design System Tokens (Phase 03, Step 28 Finalization) */
 :root {
-  /* Color Palette - Dark Theme (Default) */
+  /* Brand & Core Color Roles - Dark Theme (Default) */
   --bg-app: #0f172a;
   --bg-header: #1e293b;
   --bg-sidebar: #1e293b;
@@ -8,37 +8,85 @@
   --bg-panel: #1e293b;
   --bg-active-tab: #090d16;
   --bg-hover: #334155;
+  --bg-active: rgba(56, 189, 248, 0.2);
   --bg-status: #0f172a;
   
-  --border-color: #334155;
-  --border-focus: #38bdf8;
+  /* Semantic Layer / Background Aliases */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-card: #1e293b;
+  --bg-input: #090d16;
+  --bg-dropdown: #1e293b;
+  --bg-modal: #1e293b;
 
+  /* Borders & Focus */
+  --border-color: #334155;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: #38bdf8;
+  --border-width: 1px;
+
+  /* Typography Colors */
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
   --text-accent: #38bdf8;
+  --text-inverse: #0f172a;
+  --text-danger: #ef4444;
 
+  /* Accent & Action */
   --accent-primary: #0284c7;
   --accent-hover: #0369a1;
+  --accent-active: #075985;
+  --accent-color: #38bdf8;
+  --accent-subtle: rgba(2, 132, 199, 0.15);
 
   /* Semantic Feedback & State Colors */
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
   --color-info: #38bdf8;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #38bdf8;
   
-  /* Typography */
+  /* Typography Scale */
   --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-code: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  --text-xs: 0.72rem;
+  --text-sm: 0.8rem;
+  --text-base: 0.85rem;
+  --text-md: 0.95rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
 
-  /* Sizing & Spacing (Comfortable Default) */
+  /* Sizing & Spacing Scale (Comfortable Default) */
+  --space-2xs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+
   --header-height: 48px;
   --statusbar-height: 28px;
   --tab-height: 38px;
   --sidebar-width: 260px;
+  --radius-xs: 2px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
+  --radius-full: 9999px;
 
   /* Z-Index Hierarchy Layer Tokens (Step 25, Rule 37) */
   --z-base: 1;
@@ -54,8 +102,11 @@
 
   /* Transitions & Shadows */
   --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  --shadow-elevation: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
 /* Compact UI Density Mode (Step 25, Rules 41-44) */
@@ -72,26 +123,56 @@
   }
 }
 
+/* Light Theme Finalization (Step 28) */
 [data-theme="light"] {
   --bg-app: #f8fafc;
   --bg-header: #ffffff;
   --bg-sidebar: #f1f5f9;
   --bg-editor: #ffffff;
-  --bg-panel: #f8fafc;
+  --bg-panel: #ffffff;
   --bg-active-tab: #ffffff;
   --bg-hover: #e2e8f0;
+  --bg-active: rgba(2, 132, 199, 0.15);
   --bg-status: #e2e8f0;
 
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+  --bg-dropdown: #ffffff;
+  --bg-modal: #ffffff;
+
   --border-color: #cbd5e1;
+  --border-subtle: rgba(0, 0, 0, 0.06);
   --border-focus: #0284c7;
 
   --text-primary: #0f172a;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-muted: #64748b;
   --text-accent: #0284c7;
+  --text-inverse: #ffffff;
+  --text-danger: #dc2626;
 
   --accent-primary: #0284c7;
   --accent-hover: #0369a1;
+  --accent-active: #075985;
+  --accent-color: #0284c7;
+  --accent-subtle: rgba(2, 132, 199, 0.1);
+
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+  --color-info: #0284c7;
+  --success: #059669;
+  --warning: #d97706;
+  --error: #dc2626;
+  --info: #0284c7;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-elevation: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 * {
@@ -189,4 +270,67 @@ textarea:focus-visible,
     scroll-behavior: auto !important;
   }
 }
+
+/* =========================================================================
+   Step 28: Standardized Component Interaction States
+   ========================================================================= */
+
+.qm-button {
+  font-family: var(--font-ui);
+}
+.qm-button:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+.qm-button-primary:not(:disabled):hover {
+  background-color: var(--accent-hover) !important;
+  filter: none;
+}
+.qm-button-secondary:not(:disabled):hover {
+  background-color: var(--bg-hover) !important;
+  filter: none;
+}
+.qm-button-outline:not(:disabled):hover {
+  background-color: var(--bg-hover) !important;
+  filter: none;
+}
+.qm-button-ghost:not(:disabled):hover {
+  background-color: var(--bg-hover) !important;
+  filter: none;
+}
+.qm-button-destructive:not(:disabled):hover {
+  opacity: 0.9 !important;
+  filter: none;
+}
+.qm-button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.qm-icon-button {
+  font-family: var(--font-ui);
+}
+.qm-icon-button:not(:disabled):hover {
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+}
+.qm-icon-button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.qm-card {
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.qm-card-clickable:hover {
+  border-color: var(--border-focus) !important;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+}
+
+.qm-list-item:hover:not([aria-disabled="true"]) {
+  background-color: var(--bg-hover) !important;
+}
+
+.qm-panel-header {
+  min-height: 34px;
+}
+
 

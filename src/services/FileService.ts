@@ -1,6 +1,7 @@
 import { FileResource } from '../types';
 import { QMEditorError, ErrorCode } from '../utils/errors';
 import { logger } from '../utils/logger';
+import { globalFileSystemWatcherService } from '../core/watcher';
 
 export interface OpenPickerOptions {
   types?: Array<{
@@ -151,6 +152,9 @@ export class FileService {
           'error'
         );
       }
+
+      const targetUri = existingResource?.uri || `browser-fs://${handle.name}`;
+      globalFileSystemWatcherService.recordInternalWrite(targetUri);
 
       // Safe atomic write strategy using createWritable() stream
       const writable = await handle.createWritable();

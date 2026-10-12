@@ -54,6 +54,8 @@ export interface CommandContext {
     navigateForward: () => void;
     openRecent: () => void;
     quickOpen?: () => void;
+    gotoSymbol?: (mode?: 'document' | 'workspace') => void;
+    focusOutline?: () => void;
     canNavigateBack: boolean;
     canNavigateForward: boolean;
   };

@@ -18,7 +18,7 @@ export const Card: React.FC<CardProps> = ({ children, style, className = '', onC
         boxSizing: 'border-box',
         ...style,
       }}
-      className={`qm-card ${className}`}
+      className={`qm-card ${onClick ? 'qm-card-clickable' : ''} ${className}`.trim()}
       onClick={onClick}
     >
       {children}

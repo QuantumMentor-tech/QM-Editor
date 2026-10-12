@@ -1,4 +1,5 @@
 import React from 'react';
+import { RuntimeProvider } from './state/RuntimeContext';
 import { ShellProvider } from './state/ShellContext';
 import { WorkspaceProvider } from './state/WorkspaceContext';
 import { CommandProvider } from './state/CommandContext';
@@ -62,32 +63,34 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AccessibilityProvider>
-      <FeedbackProvider>
-        <ShellProvider>
-          <WorkspaceProvider>
-            <ExplorerProvider>
-              <SearchProvider>
-                <NavigationProvider>
-                  <SourceControlProvider>
-                    <TerminalProvider>
-                      <TaskProvider>
-                        <SettingsProvider>
-                          <CommandProvider>
-                            <ContextMenuProvider>
-                              <AppContent />
-                            </ContextMenuProvider>
-                          </CommandProvider>
-                        </SettingsProvider>
-                      </TaskProvider>
-                    </TerminalProvider>
-                  </SourceControlProvider>
-                </NavigationProvider>
-              </SearchProvider>
-            </ExplorerProvider>
-          </WorkspaceProvider>
-        </ShellProvider>
-      </FeedbackProvider>
-    </AccessibilityProvider>
+    <RuntimeProvider>
+      <AccessibilityProvider>
+        <FeedbackProvider>
+          <ShellProvider>
+            <WorkspaceProvider>
+              <ExplorerProvider>
+                <SearchProvider>
+                  <NavigationProvider>
+                    <SourceControlProvider>
+                      <TerminalProvider>
+                        <TaskProvider>
+                          <SettingsProvider>
+                            <CommandProvider>
+                              <ContextMenuProvider>
+                                <AppContent />
+                              </ContextMenuProvider>
+                            </CommandProvider>
+                          </SettingsProvider>
+                        </TaskProvider>
+                      </TerminalProvider>
+                    </SourceControlProvider>
+                  </NavigationProvider>
+                </SearchProvider>
+              </ExplorerProvider>
+            </WorkspaceProvider>
+          </ShellProvider>
+        </FeedbackProvider>
+      </AccessibilityProvider>
+    </RuntimeProvider>
   );
 };

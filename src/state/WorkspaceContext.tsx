@@ -15,6 +15,11 @@ import { RecentDocumentsService } from '../services/RecentDocumentsService';
 import { SessionService } from '../services/SessionService';
 import { logger } from '../utils/logger';
 import { globalFeedbackService } from '../core/feedback/FeedbackService';
+import { globalWorkspaceEngine } from '../core/workspace';
+import { EditTransaction, CommittedEditTransaction, globalEditTransactionManager } from '../core/edit';
+import { globalFileSystemWatcherService } from '../core/watcher';
+import { globalDocumentHistoryService } from '../core/history';
+import { globalDiagnosticService } from '../core/diagnostics';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -32,11 +37,17 @@ export interface WorkspaceContextType {
   activateDoc: (documentId: string) => void;
   closeDoc: (documentId: string, force?: boolean) => void;
   updateText: (documentId: string, content: string) => void;
+  applyTransaction?: (documentId: string, transaction: EditTransaction) => Promise<CommittedEditTransaction | null>;
   changeDocLanguage: (documentId: string, languageId: string) => void;
   saveDoc: (documentId: string) => Promise<void>;
   saveDocAs: (documentId: string) => Promise<void>;
   cancelDirtyClose: () => void;
   confirmDiscardDirty: () => void;
+  resolveConflict?: (documentId: string, resolution: 'keep_local' | 'revert_disk') => Promise<void>;
+  undoDoc?: (documentId: string) => Promise<boolean>;
+  redoDoc?: (documentId: string) => Promise<boolean>;
+  canUndoDoc?: (documentId: string) => boolean;
+  canRedoDoc?: (documentId: string) => boolean;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -71,6 +82,62 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const activePath = activeDoc?.filePath || activeDoc?.fileResource?.uri;
     SessionService.saveSession(openPaths, activePath);
   }, [openDocs, activeDoc]);
+
+  // Register unsaved document protection with the Workspace Engine
+  useEffect(() => {
+    const unregister = globalWorkspaceEngine.registerUnsavedChangesChecker(() => {
+      return openDocs.some((d) => d.isDirty);
+    });
+    return unregister;
+  }, [openDocs]);
+
+  // Register live document hooks with FileSystemWatcherService for external change reconciliation
+  useEffect(() => {
+    const unregisterHooks = globalFileSystemWatcherService.registerDocumentHooks(
+      () => openDocs,
+      (documentId: string, newContent: string) => {
+        setRegistry((prev) => {
+          const doc = prev.documents[documentId];
+          if (!doc) return prev;
+          return {
+            ...prev,
+            documents: {
+              ...prev.documents,
+              [documentId]: {
+                ...doc,
+                content: newContent,
+                savedContent: newContent,
+                isDirty: false,
+                contentRevision: doc.contentRevision + 1,
+                savedRevision: doc.contentRevision + 1,
+              },
+            },
+          };
+        });
+      }
+    );
+
+    const unregisterConflictListener = globalFileSystemWatcherService.on(
+      'watcher.conflictDetected',
+      (payload) => {
+        const doc = registry.documents[payload.documentId];
+        const title = doc?.title || payload.uri;
+        globalFeedbackService.showWarning(
+          `File "${title}" was modified externally on disk, but has unsaved local changes.`,
+          {
+            source: 'watcher.conflict',
+            scope: 'document',
+            scopeId: payload.documentId,
+          }
+        );
+      }
+    );
+
+    return () => {
+      unregisterHooks();
+      unregisterConflictListener();
+    };
+  }, [openDocs, registry.documents]);
 
   const openDoc = (doc: DocumentModel) => {
     setRegistry((prev) => registerOpenDocument(prev, doc));
@@ -173,11 +240,44 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return;
     }
 
+    globalDocumentHistoryService.disposeDocument(documentId);
+    if (!doc.filePath) {
+      globalDiagnosticService.clearDocument(doc.title || documentId);
+    }
     setRegistry((prev) => closeDocument(prev, documentId));
   };
 
   const updateText = (documentId: string, content: string) => {
     setRegistry((prev) => updateDocumentText(prev, documentId, content));
+  };
+
+  const applyTransaction = async (
+    documentId: string,
+    transaction: EditTransaction
+  ): Promise<CommittedEditTransaction | null> => {
+    const doc = registry.documents[documentId];
+    if (!doc) return null;
+
+    try {
+      const result = await globalEditTransactionManager.applyTransaction(doc, transaction);
+      setRegistry((prev) => {
+        if (!prev.documents[documentId]) return prev;
+        return {
+          ...prev,
+          documents: {
+            ...prev.documents,
+            [documentId]: result.document,
+          },
+        };
+      });
+      return result.transaction;
+    } catch (err) {
+      logger.error('Failed to apply edit transaction', {
+        documentId,
+        error: (err as Error).message,
+      });
+      throw err;
+    }
   };
 
   const changeDocLanguage = (documentId: string, languageId: string) => {
@@ -215,6 +315,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const contentSnapshot = doc.content;
 
       const updatedResource = await fileService.writeFile(handle, contentSnapshot);
+
+      globalDocumentHistoryService.markSaved(documentId, targetRevision);
 
       setRegistry((prev) =>
         saveDocumentState(prev, documentId, targetRevision, updatedResource)
@@ -261,6 +363,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       const updatedResource = await fileService.writeFile(doc.fileResource, contentSnapshot);
 
+      globalDocumentHistoryService.markSaved(documentId, targetRevision);
+
       setRegistry((prev) =>
         saveDocumentState(prev, documentId, targetRevision, updatedResource)
       );
@@ -294,9 +398,128 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const confirmDiscardDirty = () => {
     if (dirtyCloseTarget) {
+      globalDocumentHistoryService.disposeDocument(dirtyCloseTarget.id);
+      if (!dirtyCloseTarget.filePath) {
+        globalDiagnosticService.clearDocument(dirtyCloseTarget.title || dirtyCloseTarget.id);
+      }
       setRegistry((prev) => closeDocument(prev, dirtyCloseTarget.id));
       setDirtyCloseTarget(null);
     }
+  };
+
+  const resolveConflict = async (
+    documentId: string,
+    resolution: 'keep_local' | 'revert_disk'
+  ): Promise<void> => {
+    const doc = registry.documents[documentId];
+    if (!doc) return;
+
+    if (resolution === 'keep_local') {
+      globalFileSystemWatcherService.resolveConflict(doc, 'keep_local');
+      globalFeedbackService.showInfo(`Preserved local changes for "${doc.title}".`, {
+        source: 'watcher.conflict',
+        scope: 'document',
+        scopeId: documentId,
+      });
+      return;
+    }
+
+    if (resolution === 'revert_disk') {
+      try {
+        let diskContent = '';
+        if (doc.fileResource?.handle) {
+          const readResult = await fileService.readFile(doc.fileResource.handle);
+          diskContent = readResult.content;
+        }
+        globalFileSystemWatcherService.resolveConflict(doc, 'revert_disk', diskContent);
+        setRegistry((prev) => {
+          const currentDoc = prev.documents[documentId];
+          if (!currentDoc) return prev;
+          return {
+            ...prev,
+            documents: {
+              ...prev.documents,
+              [documentId]: {
+                ...currentDoc,
+                content: diskContent,
+                savedContent: diskContent,
+                isDirty: false,
+                contentRevision: currentDoc.contentRevision + 1,
+                savedRevision: currentDoc.contentRevision + 1,
+              },
+            },
+          };
+        });
+        globalFeedbackService.showSuccess(`Reverted "${doc.title}" to disk state.`, {
+          source: 'watcher.conflict',
+          scope: 'document',
+          scopeId: documentId,
+        });
+      } catch (err) {
+        logger.error('Failed to revert document to disk', {
+          documentId,
+          error: (err as Error).message,
+        });
+      }
+    }
+  };
+
+  const undoDoc = async (documentId: string): Promise<boolean> => {
+    const doc = registry.documents[documentId];
+    if (!doc || !globalDocumentHistoryService.canUndo(documentId)) return false;
+    try {
+      const result = await globalDocumentHistoryService.undo(doc);
+      setRegistry((prev) => {
+        if (!prev.documents[documentId]) return prev;
+        return {
+          ...prev,
+          documents: {
+            ...prev.documents,
+            [documentId]: result.document,
+          },
+        };
+      });
+      return true;
+    } catch (err) {
+      logger.warn('Failed to undo document edit', {
+        documentId,
+        error: (err as Error).message,
+      });
+      return false;
+    }
+  };
+
+  const redoDoc = async (documentId: string): Promise<boolean> => {
+    const doc = registry.documents[documentId];
+    if (!doc || !globalDocumentHistoryService.canRedo(documentId)) return false;
+    try {
+      const result = await globalDocumentHistoryService.redo(doc);
+      setRegistry((prev) => {
+        if (!prev.documents[documentId]) return prev;
+        return {
+          ...prev,
+          documents: {
+            ...prev.documents,
+            [documentId]: result.document,
+          },
+        };
+      });
+      return true;
+    } catch (err) {
+      logger.warn('Failed to redo document edit', {
+        documentId,
+        error: (err as Error).message,
+      });
+      return false;
+    }
+  };
+
+  const canUndoDoc = (documentId: string): boolean => {
+    return globalDocumentHistoryService.canUndo(documentId);
+  };
+
+  const canRedoDoc = (documentId: string): boolean => {
+    return globalDocumentHistoryService.canRedo(documentId);
   };
 
   return (
@@ -315,11 +538,17 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         activateDoc,
         closeDoc,
         updateText,
+        applyTransaction,
         changeDocLanguage,
         saveDoc,
         saveDocAs,
         cancelDirtyClose,
         confirmDiscardDirty,
+        resolveConflict,
+        undoDoc,
+        redoDoc,
+        canUndoDoc,
+        canRedoDoc,
       }}
     >
       {children}

@@ -189,7 +189,7 @@ export const MenuBar: React.FC = () => {
                   top: '100%',
                   left: 0,
                   marginTop: '2px',
-                  zIndex: 9999,
+                  zIndex: 'var(--z-dropdown, 100)' as unknown as number,
                   backgroundColor: 'var(--bg-secondary)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--radius-sm)',

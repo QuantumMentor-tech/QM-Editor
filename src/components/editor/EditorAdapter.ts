@@ -34,6 +34,8 @@ import {
 import { oneDark } from '@codemirror/theme-one-dark';
 import { ThemeMode, EditorSettings } from '../../types';
 import { DEFAULT_EDITOR_SETTINGS } from '../../services/PreferencesService';
+import { Diagnostic } from '../../core/diagnostics/DiagnosticTypes';
+import { rangeToCharacterOffsets } from '../../core/diagnostics/DiagnosticValidation';
 
 export interface MatchRange {
   from: number;
@@ -69,6 +71,55 @@ export const searchHighlightField = StateField.define<DecorationSet>({
         });
         return Decoration.set(decos, true);
       } else if (effect.is(clearSearchMatchesEffect)) {
+        return Decoration.none;
+      }
+    }
+    return decorations;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
+export const setDiagnosticsEffect = StateEffect.define<Diagnostic[]>();
+export const clearDiagnosticsEffect = StateEffect.define<void>();
+
+function createDiagnosticDecoration(diag: Diagnostic) {
+  const codePart = diag.code !== undefined ? ` [${diag.code}]` : '';
+  const title = `${diag.source ? `[${diag.source}] ` : ''}${diag.message}${codePart}`;
+  const className = `cm-diagnostic-${diag.severity || 'error'}`;
+
+  return Decoration.mark({
+    class: className,
+    attributes: {
+      title,
+      'aria-label': `${diag.severity}: ${diag.message}`,
+    },
+  });
+}
+
+export const diagnosticHighlightField = StateField.define<DecorationSet>({
+  create() {
+    return Decoration.none;
+  },
+  update(decorations, tr) {
+    decorations = decorations.map(tr.changes);
+    for (const effect of tr.effects) {
+      if (effect.is(setDiagnosticsEffect)) {
+        const diags = effect.value || [];
+        const docText = tr.newDoc.toString();
+        const decos: any[] = [];
+
+        for (const diag of diags) {
+          const { from, to } = rangeToCharacterOffsets(diag.range, docText);
+          if (from < to) {
+            const deco = createDiagnosticDecoration(diag);
+            decos.push(deco.range(from, to));
+          }
+        }
+
+        // Sort decorations by range start
+        decos.sort((a, b) => a.from - b.from);
+        return Decoration.set(decos, true);
+      } else if (effect.is(clearDiagnosticsEffect)) {
         return Decoration.none;
       }
     }
@@ -128,8 +179,12 @@ export interface EditorAdapterOptions {
   theme?: ThemeMode;
   language?: string;
   settings?: EditorSettings;
-  onChange?: (newContent: string) => void;
+  onChange?: (newContent: string, meta?: EditorChangeMetadata) => void;
   onCursorActivity?: (pos: { line: number; column: number }) => void;
+}
+
+export interface EditorChangeMetadata {
+  isComposition?: boolean;
 }
 
 export interface EditorAdapterInterface {
@@ -147,7 +202,10 @@ export interface EditorAdapterInterface {
   selectAndRevealRange(from: number, to: number): void;
   highlightMatches(matches: MatchRange[], currentIndex: number): void;
   clearSearchHighlights(): void;
+  setDiagnostics(diagnostics: Diagnostic[]): void;
+  clearDiagnostics(): void;
   getSelectedText(): string;
+  isComposing?(): boolean;
   focus(): void;
   dispose(): void;
 }
@@ -171,7 +229,7 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
   private foldingCompartment = new Compartment();
 
   private isUpdatingProgrammatically = false;
-  private onChangeCallback: ((newContent: string) => void) | null = null;
+  private onChangeCallback: ((newContent: string, meta?: EditorChangeMetadata) => void) | null = null;
   private onCursorActivityCallback: ((pos: { line: number; column: number }) => void) | null = null;
 
   public mount(container: HTMLElement, initialContent: string, options: EditorAdapterOptions = {}): void {
@@ -264,11 +322,14 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
         whitespaceExt,
         foldingExt,
         searchHighlightField,
+        diagnosticHighlightField,
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !this.isUpdatingProgrammatically) {
             const newContent = update.state.doc.toString();
             if (this.onChangeCallback) {
-              this.onChangeCallback(newContent);
+              this.onChangeCallback(newContent, {
+                isComposition: Boolean(update.view.composing),
+              });
             }
           }
           if ((update.selectionSet || update.docChanged) && this.onCursorActivityCallback) {
@@ -294,6 +355,29 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
             backgroundColor: 'rgba(59, 130, 246, 0.6)',
             color: '#ffffff',
             borderRadius: '2px',
+          },
+          '.cm-diagnostic-error': {
+            textDecoration: 'underline wavy #f85149',
+            textDecorationSkipInk: 'none',
+            backgroundColor: 'rgba(248, 81, 73, 0.12)',
+            borderRadius: '1px',
+          },
+          '.cm-diagnostic-warning': {
+            textDecoration: 'underline wavy #d29922',
+            textDecorationSkipInk: 'none',
+            backgroundColor: 'rgba(210, 153, 34, 0.12)',
+            borderRadius: '1px',
+          },
+          '.cm-diagnostic-info': {
+            textDecoration: 'underline wavy #58a6ff',
+            textDecorationSkipInk: 'none',
+            backgroundColor: 'rgba(88, 166, 255, 0.12)',
+            borderRadius: '1px',
+          },
+          '.cm-diagnostic-hint': {
+            textDecoration: 'underline dotted #8b949e',
+            textDecorationSkipInk: 'none',
+            backgroundColor: 'transparent',
           },
         }),
       ],
@@ -455,6 +539,20 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
     });
   }
 
+  public setDiagnostics(diagnostics: Diagnostic[]): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: setDiagnosticsEffect.of(diagnostics),
+    });
+  }
+
+  public clearDiagnostics(): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: clearDiagnosticsEffect.of(),
+    });
+  }
+
   public getSelectedText(): string {
     if (!this.view) return '';
     const mainSel = this.view.state.selection.main;
@@ -472,6 +570,10 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
 
   public selectAll(): boolean {
     return this.view ? selectAll(this.view) : false;
+  }
+
+  public isComposing(): boolean {
+    return Boolean(this.view && this.view.composing);
   }
 
   public focus(): void {

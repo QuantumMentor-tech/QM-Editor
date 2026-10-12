@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Terminal as TerminalIcon, AlertCircle, FileText, X, Play } from 'lucide-react';
 import { useShellState } from '../../state/ShellContext';
 import { useTerminal } from '../../state/TerminalContext';
@@ -7,12 +7,23 @@ import { TerminalPanel } from '../terminal/TerminalPanel';
 import { TasksPanel } from '../tasks/TasksPanel';
 import { ProblemsPanel } from '../problems/ProblemsPanel';
 import { IconButton } from '../common/IconButton';
+import { globalDiagnosticService } from '../../core/diagnostics';
 
 export const SecondaryPanel: React.FC = () => {
   const { state, setActivePanelView, togglePanel, setPanelHeight } = useShellState();
   const { sessions } = useTerminal();
   const { allProblems } = useTasks();
+  const [diagCount, setDiagCount] = useState<number>(() => globalDiagnosticService.getSummary().total);
   const isDraggingRef = useRef(false);
+
+  useEffect(() => {
+    const unsubscribe = globalDiagnosticService.subscribe(() => {
+      setDiagCount(globalDiagnosticService.getSummary().total);
+    });
+    return unsubscribe;
+  }, []);
+
+  const totalProblemCount = Math.max(allProblems.length, diagCount);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -89,7 +100,7 @@ export const SecondaryPanel: React.FC = () => {
           right: 0,
           height: '5px',
           cursor: 'row-resize',
-          zIndex: 10,
+          zIndex: 'var(--z-resizer, 10)',
           backgroundColor: 'transparent',
           transition: 'background-color 0.15s ease',
         }}
@@ -171,7 +182,7 @@ export const SecondaryPanel: React.FC = () => {
             type="button"
             role="tab"
             aria-selected={state.activePanelView === 'problems'}
-            aria-label={`Problems (${allProblems.length})`}
+            aria-label={`Problems (${totalProblemCount})`}
             tabIndex={state.activePanelView === 'problems' ? 0 : -1}
             onClick={() => setActivePanelView('problems')}
             style={{
@@ -189,7 +200,7 @@ export const SecondaryPanel: React.FC = () => {
             }}
           >
             <AlertCircle size={13} />
-            <span>Problems ({allProblems.length})</span>
+            <span>Problems ({totalProblemCount})</span>
           </button>
 
           <button

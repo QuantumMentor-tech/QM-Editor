@@ -1,10 +1,11 @@
 import React, { useRef, useEffect } from 'react';
-import { PanelLeftClose, PanelLeft, Plus, FolderTree, GitBranch } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, Plus, FolderTree, GitBranch, ListTree } from 'lucide-react';
 import { IconButton } from '../common/IconButton';
 import { useShellState } from '../../state/ShellContext';
 import { useCommand } from '../../state/CommandContext';
 import { FileExplorer } from '../explorer/FileExplorer';
 import { SourceControlPanel } from '../source-control/SourceControlPanel';
+import { OutlinePanel } from '../symbols/OutlinePanel';
 
 export const Sidebar: React.FC = () => {
   const { state, setSidebarView, setSidebarWidth } = useShellState();
@@ -61,6 +62,13 @@ export const Sidebar: React.FC = () => {
           }}
           aria-label="Source Control"
           icon={<GitBranch size={16} />}
+        />
+        <IconButton
+          onClick={() => {
+            setSidebarView('outline');
+          }}
+          aria-label="Symbol Outline"
+          icon={<ListTree size={16} />}
         />
       </div>
     );
@@ -121,7 +129,7 @@ export const Sidebar: React.FC = () => {
           bottom: 0,
           width: '5px',
           cursor: 'col-resize',
-          zIndex: 10,
+          zIndex: 'var(--z-resizer, 10)',
           backgroundColor: 'transparent',
           transition: 'background-color 0.15s ease',
         }}
@@ -171,7 +179,7 @@ export const Sidebar: React.FC = () => {
 
           <button
             role="tab"
-            aria-selected={!isExplorer}
+            aria-selected={state.sidebarView === 'scm'}
             aria-label="Source Control"
             onClick={() => setSidebarView('scm')}
             style={{
@@ -181,15 +189,38 @@ export const Sidebar: React.FC = () => {
               borderRadius: 'var(--radius-sm)',
               fontWeight: 600,
               fontSize: '0.75rem',
-              color: !isExplorer ? 'var(--accent-primary)' : 'var(--text-muted)',
-              borderBottom: !isExplorer ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              color: state.sidebarView === 'scm' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: state.sidebarView === 'scm' ? '2px solid var(--accent-primary)' : '2px solid transparent',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '4px',
             }}
           >
-            <GitBranch size={13} /> Source Control
+            <GitBranch size={13} /> SCM
+          </button>
+
+          <button
+            role="tab"
+            aria-selected={state.sidebarView === 'outline'}
+            aria-label="Symbol Outline"
+            onClick={() => setSidebarView('outline')}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)',
+              fontWeight: 600,
+              fontSize: '0.75rem',
+              color: state.sidebarView === 'outline' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: state.sidebarView === 'outline' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <ListTree size={13} /> Outline
           </button>
         </div>
 
@@ -208,7 +239,9 @@ export const Sidebar: React.FC = () => {
       </div>
 
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        {isExplorer ? <FileExplorer /> : <SourceControlPanel />}
+        {state.sidebarView === 'explorer' && <FileExplorer />}
+        {state.sidebarView === 'scm' && <SourceControlPanel />}
+        {state.sidebarView === 'outline' && <OutlinePanel />}
       </div>
     </aside>
   );

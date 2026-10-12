@@ -231,7 +231,7 @@ export const ToastHost: React.FC = () => {
         position: 'fixed',
         bottom: '36px',
         right: '16px',
-        zIndex: 9990,
+        zIndex: 'var(--z-toast, 2000)' as unknown as number,
         display: 'flex',
         flexDirection: 'column-reverse',
         gap: '8px',

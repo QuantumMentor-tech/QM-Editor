@@ -98,6 +98,7 @@ export const Button: React.FC<ButtonProps> = ({
       type={type}
       disabled={disabled || isLoading}
       aria-busy={isLoading ? 'true' : undefined}
+      className={`qm-button qm-button-${variant} qm-button-${size} ${props.className || ''}`.trim()}
       style={baseStyles}
       {...props}
     >

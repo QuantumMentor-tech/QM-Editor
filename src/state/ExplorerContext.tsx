@@ -6,6 +6,8 @@ import { useWorkspace } from './WorkspaceContext';
 import { createNewDocument } from '../core/document';
 import { logger } from '../utils/logger';
 import { RecentWorkspacesService } from '../services/RecentWorkspacesService';
+import { globalApplicationRuntime } from '../core/runtime';
+import { globalWorkspaceEngine } from '../core/workspace';
 
 export interface ExplorerContextType {
   workspaceRoot: WorkspaceRootModel | null;
@@ -57,6 +59,12 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setWorkspaceRoot(root);
       setExpandedNodeIds(new Set([root.id]));
       RecentWorkspacesService.addRecentWorkspace(root.uri, root.name);
+      globalWorkspaceEngine.open(root.uri, { name: root.name, handle: root.handle, force: true }).catch((e) => {
+        logger.warn('WorkspaceEngine open notification warning', { error: (e as Error).message });
+      });
+      globalApplicationRuntime.openWorkspace(root.uri, root.name).catch((e) => {
+        logger.warn('Runtime openWorkspace notification warning', { error: (e as Error).message });
+      });
       setIsLoading(false);
     } catch (err: unknown) {
       const msg = (err as Error).message || 'Failed to open workspace';
@@ -71,6 +79,23 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setExpandedNodeIds(new Set());
     setSelectedNodeId(null);
     setError(null);
+    globalWorkspaceEngine.close({ force: true }).catch((e) => {
+      logger.warn('WorkspaceEngine close notification warning', { error: (e as Error).message });
+    });
+    globalApplicationRuntime.closeWorkspace().catch((e) => {
+      logger.warn('Runtime closeWorkspace notification warning', { error: (e as Error).message });
+    });
+  };
+
+  const setWorkspaceRootModel = (root: WorkspaceRootModel | null) => {
+    setWorkspaceRoot(root);
+    if (root) {
+      globalWorkspaceEngine.open(root.uri, { name: root.name, handle: root.handle, force: true }).catch(() => {});
+      globalApplicationRuntime.openWorkspace(root.uri, root.name).catch(() => {});
+    } else {
+      globalWorkspaceEngine.close({ force: true }).catch(() => {});
+      globalApplicationRuntime.closeWorkspace().catch(() => {});
+    }
   };
 
   /**
@@ -275,7 +300,7 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         activateNode,
         refreshWorkspace,
         revealActiveFile,
-        setWorkspaceRootModel: setWorkspaceRoot,
+        setWorkspaceRootModel,
       }}
     >
       {children}

@@ -174,7 +174,7 @@ export const Toolbar: React.FC = () => {
                 top: '100%',
                 right: 0,
                 marginTop: '4px',
-                zIndex: 9999,
+                zIndex: 'var(--z-dropdown, 100)' as unknown as number,
                 backgroundColor: 'var(--bg-secondary)',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--radius-sm)',

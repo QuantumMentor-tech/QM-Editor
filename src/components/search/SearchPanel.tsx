@@ -67,7 +67,7 @@ export const SearchPanel: React.FC = () => {
         position: 'absolute',
         top: '12px',
         right: '24px',
-        zIndex: 100,
+        zIndex: 'var(--z-dropdown, 100)',
         width: '360px',
         backgroundColor: 'var(--bg-card, #1e1e2e)',
         border: '1px solid var(--border-color)',

@@ -383,6 +383,38 @@ export const defaultCommands: Command[] = [
     },
   },
   {
+    id: 'workbench.action.gotoSymbol',
+    label: 'Go to Symbol in Editor...',
+    category: 'editor',
+    shortcut: 'Mod+Shift+O',
+    description: 'Search and navigate to symbols within the active document',
+    canExecute: (ctx) => Boolean(ctx.activeDoc && ctx.navigationActions?.gotoSymbol),
+    execute: (ctx) => {
+      if (ctx.navigationActions?.gotoSymbol) ctx.navigationActions.gotoSymbol('document');
+    },
+  },
+  {
+    id: 'workbench.action.showAllSymbols',
+    label: 'Go to Symbol in Workspace...',
+    category: 'workspace',
+    shortcut: 'Mod+T',
+    description: 'Search and navigate to symbols across the active workspace',
+    canExecute: (ctx) => Boolean(ctx.navigationActions?.gotoSymbol),
+    execute: (ctx) => {
+      if (ctx.navigationActions?.gotoSymbol) ctx.navigationActions.gotoSymbol('workspace');
+    },
+  },
+  {
+    id: 'outline.focus',
+    label: 'View: Focus Outline View',
+    category: 'shell',
+    description: 'Open and focus the document symbol outline view in the sidebar',
+    canExecute: (ctx) => Boolean(ctx.navigationActions?.focusOutline),
+    execute: (ctx) => {
+      if (ctx.navigationActions?.focusOutline) ctx.navigationActions.focusOutline();
+    },
+  },
+  {
     id: 'file.openRecent',
     label: 'Open Recent File...',
     category: 'document',

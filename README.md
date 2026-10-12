@@ -146,6 +146,51 @@
 - **Unified Empty-State System:** Normalized `EmptyState` component adoption across File Explorer, Editor Canvas, Source Control, Tasks, Problems, Terminal, and Search.
 - **Accurate State Communication:** Strict preservation of semantic ground truth (`Empty ≠ Loading`, `Empty ≠ Error`, `Empty ≠ Unavailable`, `No Results ≠ Error`).
 
+### 20. Design System Finalization, Visual Consistency, Theming & UI Polish (Step 28 - Phase 03 Final)
+- **Design Token Centralization:** Complete semantic layer tokens across dark and light themes (`--bg-primary`, `--bg-secondary`, `--bg-tertiary`, `--bg-card`, `--bg-input`, `--border-subtle`, `--text-inverse`, `--text-danger`, `--accent-color`, `--accent-active`, `--accent-subtle`, `--success`, `--warning`, `--error`, `--info`).
+- **Complete Theme Symmetry & Contrast:** Eliminated dark card fallbacks and pale borders in light mode; verified consistent contrast and immediate theme switching without application restarts.
+- **Z-Index Layer Normalization:** Fully eliminated arbitrary high z-index literals across all overlays, modals, menus, toolbars, and toasts in favor of centralized hierarchy tokens (`--z-base` through `--z-tooltip`).
+- **Interaction Classes & Hover Styling:** Added standard component class hooks (`.qm-button`, `.qm-icon-button`, `.qm-card-clickable`, `.qm-list-item`, `.qm-panel-header`) ensuring uniform interaction states and visual family resemblance.
+- **Phase 03 Consolidation:** Unified all 28 steps into a single cohesive desktop product with full test coverage (55 test files, 250 tests passed, 0 type errors, 0 build warnings).
+
+### 21. Core Application Runtime, Service Lifecycle & Dependency Orchestration (Step 29 - Phase 04 Initial)
+- **Central Application Runtime (`ApplicationRuntime.ts`):** Top-level runtime coordinating application lifecycle (`created`, `initializing`, `ready`, `degraded`, `shuttingDown`, `terminated`).
+- **Service Registry & Scopes (`ServiceRegistry.ts`):** Typed service registration and resolution partitioned by lifetime scope (`application`, `workspace`, `session`) and criticality (`critical`, `optional`).
+- **Topological Dependency Resolution (`DependencyResolver.ts`):** Kahn's topological sort and deterministic DFS cycle detection guaranteeing safe initialization and reverse-order shutdown.
+- **Fault Isolation & Rollback (`LifecycleManager.ts`):** Rollback on critical service failure; optional service fault isolation preserving core editor availability in degraded mode.
+- **Generational Workspace Lifecycle:** Atomic `workspaceGeneration` tokens preventing stale asynchronous results from mutating newer workspace contexts.
+- **Shutdown Coordinator (`ShutdownCoordinator.ts`):** Graceful process cleanup and resource teardown with safe timeout safeguards.
+
+### 22. Workspace & Project Context Engine (Step 30)
+- **Centralized Workspace Engine (`WorkspaceEngine.ts`):** Authoritative subsystem for active workspace state, identity, roots, capabilities, and lifecycle (`none`, `opening`, `ready`, `changing`, `closing`, `closed`, `degraded`, `failed`).
+- **Resource Boundary & Traversal Guards (`WorkspaceResourceBoundary.ts`):** Canonical path normalization and strict membership verification preventing prefix collision vulnerabilities (`C:\project` vs `C:\project-other`) and traversal exploits (`../`).
+- **Serialized Transitions & Mutex Locking:** Enforces transition locks to prevent overlapping state mutations and guarantees atomic, rollback-safe workspace switches.
+- **Async Generational Protection:** Generates request contexts with monotonic generation counter invalidation to eliminate stale background results from Search, Git, Indexing, and Tasks.
+- **Unsaved Document Protection:** Integrates document dirty state validation to prevent silent data loss during workspace changes.
+
+### 23. Edit Transactions, Change Events & Revision Consistency (Step 31)
+- **Structured Edit Transactions (`EditTransactionManager.ts`):** Atomic text operations supporting multi-cursor edits, batch replacements, and refactorings with explicit base revisions and origins.
+- **Ordered Reverse Execution:** Applies multiple non-overlapping edits descending by character offset, eliminating offset corruption during batch replacements.
+- **Revision Monotonicity & Invariants:** Enforces strict sequential `contentRevision` tracking, no-op suppression on identical content, and dirty state preservation (`isDirty = contentRevision !== savedRevision`).
+- **Undo / Save State Protection:** Restores `isDirty = false` when undoing back to the exact saved revision, and guards against in-flight save races.
+- **IME & Composition Lifecycle:** Tracks active Input Method Editor sessions with `isComposition` flags and composition event markers.
+- **Document Change Observability:** Canonical event bus publishing `document.transactionWillApply`, `document.transactionApplied`, and `document.dirtyStateChanged`.
+
+### 26. Diagnostics Model, Aggregation & Editor Integration (Step 34)
+- **Canonical Diagnostic Service (`DiagnosticService.ts`):** Central manager coordinating diagnostic collections, severity prioritisation, deduplication, and workspace summaries.
+- **Multi-Source Diagnostic Collections:** Isolated diagnostic buffers for linters, language servers, and compilers without cross-provider state stomping.
+- **CodeMirror Squiggle Decorations:** Real-time gutter and inline wavy squiggles (`.cm-diagnostic-*`) reflecting problems directly within code editors.
+- **Unified Problems Panel Integration:** Bidirectional synchronization between active diagnostics collections and task problem matchers.
+
+### 27. Symbol Infrastructure, Outline & Symbol Navigation (Step 35)
+- **Canonical Symbol Abstraction (`SymbolTypes.ts`):** Standardized `DocumentSymbol`, `WorkspaceSymbol`, and `SymbolKind` (class, interface, method, function, variable, enum, heading, etc.) with 1-based coordinates.
+- **Hierarchical Symbol Extraction (`SymbolExtractors.ts`):** Multi-language heuristic symbol parsing for TypeScript, JavaScript, Markdown (nested H1/H2/H3 hierarchies), Python, JSON, and fallbacks.
+- **Revision-Keyed Indexing (`SymbolService.ts`):** Monotonically keyed document symbol cache (`contentRevision`) preventing redundant parsing across unchanged documents.
+- **Responsive Cancellation (`CancellationToken.ts`):** Cooperative cancellation tokens releasing background scanning cycles on rapid user inputs.
+- **Generational Stale-Result Guards:** Query sequence numbering (`querySequence`) discarding outdated asynchronous symbol search results.
+- **Go To Symbol Navigation (`GoToSymbolModal.tsx`):** Unified modal supporting document symbol jumps (`@` / `Mod+Shift+O`) and workspace symbol search (`#` / `Mod+T`) with keyboard navigation and kind badges.
+- **Outline Panel (`OutlinePanel.tsx`):** Sidebar outline tree reflecting document structure with active cursor tracking and one-click jump-to-definition.
+
 ---
 
 ## 📋 Progress Roadmap
@@ -177,6 +222,14 @@
 - [x] **Step 25:** Responsive Workspace, Adaptive Layout, Panel Resizing & UI Density System
 - [x] **Step 26:** Professional UI Component Library, Interaction States & Design System Completion
 - [x] **Step 27:** Welcome Experience, Workspace Entry, Empty States & Start Center
+- [x] **Step 28:** Design System Finalization, Visual Consistency, Theming & UI Polish (Phase 03 Complete)
+- [x] **Step 29:** Core Application Runtime, Service Lifecycle & Dependency Orchestration (Phase 04 Started)
+- [x] **Step 30:** Workspace & Project Context Engine
+- [x] **Step 31:** Edit Transactions, Change Events & Revision Consistency
+- [x] **Step 32:** Filesystem Watchers & External Change Reconciliation
+- [x] **Step 33:** Undo/Redo History, Edit Grouping & Transaction Safety
+- [x] **Step 34:** Diagnostics Model, Aggregation & Editor Integration
+- [x] **Step 35:** Symbol Infrastructure, Outline & Symbol Navigation
 
 ## 🛠️ Technology Stack
 

@@ -124,7 +124,7 @@ export const ProgressHost: React.FC = () => {
         position: 'fixed',
         bottom: '36px',
         left: '16px',
-        zIndex: 9980,
+        zIndex: 'var(--z-toast, 2000)' as unknown as number,
         display: 'flex',
         flexDirection: 'column',
         gap: '6px',

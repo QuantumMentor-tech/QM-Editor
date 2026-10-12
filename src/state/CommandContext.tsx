@@ -20,6 +20,7 @@ import { CommandPaletteModal } from '../components/palette/CommandPaletteModal';
 import { QuickOpenModal } from '../components/navigation/QuickOpenModal';
 import { WorkspaceSearchModal } from '../components/search/WorkspaceSearchModal';
 import { SourceControlDiffModal } from '../components/source-control/SourceControlDiffModal';
+import { GoToSymbolModal } from '../components/symbols/GoToSymbolModal';
 import { workspaceIndexService } from '../services/WorkspaceIndexService';
 import { fileService } from '../services/FileService';
 
@@ -195,12 +196,50 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const handleGoToSymbolModal = (initialMode: 'document' | 'workspace' = 'document') => {
+    openDialog(
+      initialMode === 'workspace' ? 'Go to Symbol in Workspace' : 'Go to Symbol in Editor',
+      <GoToSymbolModal
+        initialMode={initialMode}
+        activeDoc={activeDoc}
+        onNavigate={async (uri, line, col) => {
+          closeDialog();
+          const existing = openDocs.find(
+            (d) =>
+              (d.fileResource && d.fileResource.uri.toLowerCase() === uri.toLowerCase()) ||
+              (d.filePath && d.filePath.toLowerCase() === uri.toLowerCase()) ||
+              d.title.toLowerCase() === uri.toLowerCase()
+          );
+
+          if (existing) {
+            activateDoc(existing.id);
+          } else if (openFilePath) {
+            await openFilePath(uri);
+          }
+
+          setTimeout(() => {
+            window.dispatchEvent(
+              new CustomEvent('qm:editor:gotoline', { detail: { line, column: col } })
+            );
+          }, 40);
+        }}
+        onClose={closeDialog}
+      />
+    );
+  };
+
+  const handleFocusOutline = () => {
+    setSidebarView('outline');
+  };
+
   const navigationActions = {
     goToLine: handleGoToLineModal,
     navigateBack: handleNavigateBack,
     navigateForward: handleNavigateForward,
     openRecent: handleOpenRecentModal,
     quickOpen: handleQuickOpen,
+    gotoSymbol: handleGoToSymbolModal,
+    focusOutline: handleFocusOutline,
     canNavigateBack,
     canNavigateForward,
   };
