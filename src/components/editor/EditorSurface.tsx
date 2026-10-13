@@ -9,6 +9,7 @@ import { useNavigation } from '../../state/NavigationContext';
 import { useContextMenu } from '../../state/ContextMenuContext';
 import { globalFocusManager } from '../../core/accessibility/FocusManager';
 import { globalDiagnosticService, normalizeDiagnosticUri } from '../../core/diagnostics';
+import { globalEditorCoordinationService } from '../../core/editor';
 
 export interface EditorSurfaceProps {
   document: DocumentModel;
@@ -41,6 +42,7 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
 
     const adapter = new CodeMirrorEditorAdapter();
     adapterRef.current = adapter;
+    const instanceId = `editor-${document.id}`;
 
     adapter.mount(containerRef.current, document.content, {
       theme: shellState.theme,
@@ -60,10 +62,15 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
           line: pos.line,
           column: pos.column,
         });
+        globalEditorCoordinationService.saveViewStateForInstance(instanceId, docIdRef.current);
       },
     });
 
+    globalEditorCoordinationService.registerEditorInstance(instanceId, document.id, adapter);
+    globalEditorCoordinationService.restoreViewStateForInstance(instanceId, document.id);
+
     return () => {
+      globalEditorCoordinationService.unregisterEditorInstance(instanceId);
       adapter.dispose();
       adapterRef.current = null;
     };
@@ -125,8 +132,14 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
 
   // Handle editor command events (undo, redo, selectAll, copy, cut, paste)
   useEffect(() => {
-    const handleUndo = () => adapterRef.current?.undo();
-    const handleRedo = () => adapterRef.current?.redo();
+    const handleUndo = () => {
+      if (document.fileResource?.readOnly) return;
+      adapterRef.current?.undo();
+    };
+    const handleRedo = () => {
+      if (document.fileResource?.readOnly) return;
+      adapterRef.current?.redo();
+    };
     const handleSelectAll = () => adapterRef.current?.selectAll();
     const handleCopy = () => {
       const text = adapterRef.current?.getSelectedText();

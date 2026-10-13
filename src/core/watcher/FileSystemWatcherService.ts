@@ -1,6 +1,6 @@
 /**
  * QM Editor Filesystem Watcher & External Change Reconciliation Service
- * Phase 04, Step 32 — Core Engine Subsystem
+ * Phase 04, Step 38 — Core Application Engine
  */
 
 import {
@@ -12,9 +12,15 @@ import {
   WatcherEventKey,
   WatcherEventMap,
   WatcherEventListener,
+  FileWatchAdapter,
+  WatchHandle,
+  WatcherHealthReport,
 } from './WatcherTypes';
-import { WatcherDisposedError } from './WatcherErrors';
+import { WatcherDisposedError, WorkspaceBoundaryViolationError } from './WatcherErrors';
 import { EventCoalescer } from './EventCoalescer';
+import { VirtualWatchAdapter } from './FileWatchAdapter';
+import { SaveCorrelationManager } from './SaveCorrelationManager';
+import { globalResourceSynchronizationService } from './ResourceSynchronizationService';
 import { globalWorkspaceEngine } from '../workspace';
 import { normalizeWorkspacePath, isResourceInRoot } from '../workspace/WorkspaceResourceBoundary';
 import { DocumentModel } from '../../types';
@@ -23,13 +29,24 @@ import { logger } from '../../utils/logger';
 export interface WatcherServiceOptions {
   coalesceWindowMs?: number;
   writeSuppressionMs?: number;
+  adapter?: FileWatchAdapter;
+  enforceWorkspaceBoundary?: boolean;
 }
 
 export class FileSystemWatcherService {
   private coalescer: EventCoalescer;
+  private adapter: FileWatchAdapter;
+  private saveCorrelationManager: SaveCorrelationManager;
+  private enforceWorkspaceBoundary: boolean;
   private subscriptions = new Map<string, WatcherSubscription>();
+  private activeWatcherRoots = new Map<
+    string,
+    { handle: WatchHandle; refCount: number; recursive: boolean }
+  >();
+  private subToRootMap = new Map<string, string>();
   private isDisposed: boolean = false;
   private subCounter = 0;
+  private startTime = Date.now();
 
   private listeners = new Map<WatcherEventKey, Set<WatcherEventListener<any>>>();
 
@@ -38,6 +55,10 @@ export class FileSystemWatcherService {
   private reloadDocumentHook?: (documentId: string, newContent: string) => void;
 
   constructor(options: WatcherServiceOptions = {}) {
+    this.adapter = options.adapter || new VirtualWatchAdapter();
+    this.saveCorrelationManager = new SaveCorrelationManager();
+    this.enforceWorkspaceBoundary = options.enforceWorkspaceBoundary ?? false;
+
     this.coalescer = new EventCoalescer({
       windowMs: options.coalesceWindowMs,
       writeSuppressionMs: options.writeSuppressionMs,
@@ -55,11 +76,50 @@ export class FileSystemWatcherService {
   }
 
   // ---------------------------------------------------------------------------
-  // 1. Subscription Management & Ownership
+  // 1. Adapter & Health Management
+  // ---------------------------------------------------------------------------
+
+  public setAdapter(adapter: FileWatchAdapter): void {
+    if (this.isDisposed) {
+      throw new WatcherDisposedError('setAdapter');
+    }
+    this.adapter = adapter;
+    logger.info('FileSystemWatcherService: configured watcher adapter', {
+      adapterName: adapter.name,
+    });
+    this.emitHealthChange();
+  }
+
+  public getAdapter(): FileWatchAdapter {
+    return this.adapter;
+  }
+
+  public getSaveCorrelationManager(): SaveCorrelationManager {
+    return this.saveCorrelationManager;
+  }
+
+  public getHealth(): WatcherHealthReport {
+    const isAvailable = !this.isDisposed && this.adapter.isAvailable();
+    return {
+      status: this.isDisposed ? 'disabled' : isAvailable ? 'healthy' : 'degraded',
+      activeWatchersCount: this.activeWatcherRoots.size,
+      activeSubscriptionsCount: this.subscriptions.size,
+      adapterName: this.adapter.name,
+      uptimeMs: Date.now() - this.startTime,
+    };
+  }
+
+  private emitHealthChange(): void {
+    this.emit('watcher.healthChanged', { health: this.getHealth() }).catch(() => {});
+  }
+
+  // ---------------------------------------------------------------------------
+  // 2. Subscription Management & Deduplication
   // ---------------------------------------------------------------------------
 
   /**
    * Registers a watcher subscription on a target folder or file URI.
+   * Enforces deduplication by reusing existing root watchers where applicable.
    */
   public watch(
     rawTargetUri: string,
@@ -75,6 +135,81 @@ export class FileSystemWatcherService {
     const recursive = options.recursive ?? true;
     const workspaceGeneration =
       options.workspaceGeneration ?? globalWorkspaceEngine.getGeneration();
+
+    // 1. Workspace boundary validation
+    const primaryRoot = globalWorkspaceEngine.getPrimaryRoot();
+    const workspaceRoot = primaryRoot ? primaryRoot.uri : undefined;
+    if (workspaceRoot && !isResourceInRoot(workspaceRoot, targetUri)) {
+      if (this.enforceWorkspaceBoundary) {
+        throw new WorkspaceBoundaryViolationError(targetUri, workspaceRoot);
+      }
+      logger.warn('FileSystemWatcherService: watch target is outside workspace root', {
+        targetUri,
+        workspaceRoot,
+      });
+    }
+
+    // 2. Deduplication check: check if an existing root watcher already covers targetUri
+    let rootKeyToUse: string | undefined;
+    for (const [rootKey, rootEntry] of this.activeWatcherRoots.entries()) {
+      if (rootKey === targetUri) {
+        rootKeyToUse = rootKey;
+        break;
+      }
+      if (rootEntry.recursive && isResourceInRoot(rootKey, targetUri)) {
+        rootKeyToUse = rootKey;
+        break;
+      }
+    }
+
+    if (rootKeyToUse) {
+      // Reuse existing root watcher
+      const entry = this.activeWatcherRoots.get(rootKeyToUse)!;
+      entry.refCount++;
+      this.subToRootMap.set(id, rootKeyToUse);
+      logger.info('FileSystemWatcherService: reused existing watcher root (deduplicated)', {
+        targetUri,
+        rootUri: rootKeyToUse,
+        refCount: entry.refCount,
+      });
+    } else {
+      // Start a new root watcher on the adapter
+      rootKeyToUse = targetUri;
+      this.subToRootMap.set(id, rootKeyToUse);
+
+      const placeholderHandle: WatchHandle = {
+        id: `handle-${Date.now()}`,
+        rootUri: targetUri,
+        recursive,
+        stop: async () => {},
+      };
+
+      const rootEntry = {
+        handle: placeholderHandle,
+        refCount: 1,
+        recursive,
+      };
+
+      this.activeWatcherRoots.set(targetUri, rootEntry);
+
+      this.adapter
+        .watch(targetUri, (rawEv) => this.notifyRawEvent(rawEv), options)
+        .then((handle) => {
+          rootEntry.handle = handle;
+          this.emit('watcher.rootStarted', {
+            rootUri: targetUri,
+            handleId: handle.id,
+          }).catch(() => {});
+          this.emitHealthChange();
+        })
+        .catch((err) => {
+          logger.error('FileSystemWatcherService: adapter failed to start root watcher', {
+            targetUri,
+            error: (err as Error).message,
+          });
+          this.emitHealthChange();
+        });
+    }
 
     const sub: WatcherSubscription = {
       id,
@@ -94,6 +229,7 @@ export class FileSystemWatcherService {
       targetUri,
       recursive,
     }).catch(() => {});
+    this.emitHealthChange();
 
     return () => {
       this.unwatch(id);
@@ -107,15 +243,38 @@ export class FileSystemWatcherService {
     sub.disposed = true;
     this.subscriptions.delete(subscriptionId);
 
+    // Release root reference
+    const rootKey = this.subToRootMap.get(subscriptionId);
+    if (rootKey) {
+      this.subToRootMap.delete(subscriptionId);
+      const rootEntry = this.activeWatcherRoots.get(rootKey);
+      if (rootEntry) {
+        rootEntry.refCount--;
+        if (rootEntry.refCount <= 0) {
+          rootEntry.handle.stop().catch(() => {});
+          this.activeWatcherRoots.delete(rootKey);
+          this.emit('watcher.rootStopped', {
+            rootUri: rootKey,
+            handleId: rootEntry.handle.id,
+          }).catch(() => {});
+        }
+      }
+    }
+
     logger.info('FileSystemWatcherService: subscription removed', { subscriptionId });
     this.emit('watcher.subscriptionDisposed', {
       subscriptionId,
       targetUri: sub.targetUri,
     }).catch(() => {});
+    this.emitHealthChange();
   }
 
   public getActiveSubscriptionCount(): number {
     return this.subscriptions.size;
+  }
+
+  public getActiveRootCount(): number {
+    return this.activeWatcherRoots.size;
   }
 
   /**
@@ -125,8 +284,7 @@ export class FileSystemWatcherService {
     let cleaned = 0;
     for (const [id, sub] of this.subscriptions.entries()) {
       if (sub.workspaceGeneration !== undefined && sub.workspaceGeneration < currentGeneration) {
-        sub.disposed = true;
-        this.subscriptions.delete(id);
+        this.unwatch(id);
         cleaned++;
       }
     }
@@ -136,15 +294,16 @@ export class FileSystemWatcherService {
         cleanedCount: cleaned,
         generation: currentGeneration,
       });
+      this.emitHealthChange();
     }
   }
 
   // ---------------------------------------------------------------------------
-  // 2. Event Ingestion, Write Suppression & Coalescing
+  // 3. Event Ingestion, Write Suppression & Coalescing
   // ---------------------------------------------------------------------------
 
   /**
-   * Ingests a raw filesystem notification (e.g. from FileSystemHandle or platform observer).
+   * Ingests a raw filesystem notification (e.g. from FileSystemHandle, adapter, or test).
    */
   public notifyRawEvent(rawEvent: RawFileSystemEvent): void {
     if (this.isDisposed) return;
@@ -162,17 +321,19 @@ export class FileSystemWatcherService {
    */
   public recordInternalWrite(uri: string, windowMs?: number): void {
     this.coalescer.markInternalWrite(uri, windowMs);
+    this.saveCorrelationManager.registerSave(uri, { ttlMs: windowMs });
   }
 
   /**
-   * Dispatches flushed coalesced events to active matching subscriptions.
+   * Dispatches flushed coalesced events to active matching subscriptions
+   * and pipelines them into ResourceSynchronizationService.
    */
   private dispatchCoalescedEvents(events: CoalescedFileSystemEvent[]): void {
     if (this.isDisposed || events.length === 0) return;
 
     const currentGeneration = globalWorkspaceEngine.getGeneration();
 
-    // 1. Stale-event check per generation
+    // 1. Stale-event check per workspace generation
     const validEvents = events.filter((ev) => {
       if (ev.workspaceGeneration !== undefined && ev.workspaceGeneration !== currentGeneration) {
         logger.info('FileSystemWatcherService: discarded stale event from older generation', {
@@ -205,7 +366,11 @@ export class FileSystemWatcherService {
         // Exact match or recursive child
         if (ev.uri === sub.targetUri) return true;
         if (sub.recursive && isResourceInRoot(sub.targetUri, ev.uri)) return true;
-        if (ev.oldUri && (ev.oldUri === sub.targetUri || (sub.recursive && isResourceInRoot(sub.targetUri, ev.oldUri)))) {
+        if (
+          ev.oldUri &&
+          (ev.oldUri === sub.targetUri ||
+            (sub.recursive && isResourceInRoot(sub.targetUri, ev.oldUri)))
+        ) {
           return true;
         }
 
@@ -224,12 +389,27 @@ export class FileSystemWatcherService {
       }
     }
 
-    // 3. Reconcile external changes on open documents
+    // 3. Pipeline into ResourceSynchronizationService for classification and DocumentEngine sync
+    for (const ev of validEvents) {
+      globalResourceSynchronizationService
+        .classifyChange(ev)
+        .then((classified) => {
+          return globalResourceSynchronizationService.synchronizeChange(classified);
+        })
+        .catch((err) => {
+          logger.error('FileSystemWatcherService: error in resource synchronization pipeline', {
+            uri: ev.uri,
+            error: (err as Error).message,
+          });
+        });
+    }
+
+    // 4. Reconcile external changes on open legacy documents (backward compatibility)
     this.reconcileOpenDocuments(validEvents);
   }
 
   // ---------------------------------------------------------------------------
-  // 3. Document Reconciliation & Conflict Protection
+  // 4. Document Reconciliation & Conflict Protection (Backward Compatibility)
   // ---------------------------------------------------------------------------
 
   public registerDocumentHooks(
@@ -374,7 +554,7 @@ export class FileSystemWatcherService {
   }
 
   // ---------------------------------------------------------------------------
-  // 4. Conflict Resolution
+  // 5. Conflict Resolution
   // ---------------------------------------------------------------------------
 
   public resolveConflict(
@@ -402,7 +582,7 @@ export class FileSystemWatcherService {
   }
 
   // ---------------------------------------------------------------------------
-  // 5. Watcher Event Subscriptions
+  // 6. Watcher Event Subscriptions
   // ---------------------------------------------------------------------------
 
   public on<K extends WatcherEventKey>(
@@ -440,7 +620,7 @@ export class FileSystemWatcherService {
   }
 
   // ---------------------------------------------------------------------------
-  // 6. Cleanup & Lifecycle
+  // 7. Cleanup & Lifecycle
   // ---------------------------------------------------------------------------
 
   public flush(): void {
@@ -450,8 +630,12 @@ export class FileSystemWatcherService {
   public dispose(): void {
     this.isDisposed = true;
     this.coalescer.dispose();
+    this.adapter.dispose().catch(() => {});
+    this.activeWatcherRoots.clear();
+    this.subToRootMap.clear();
     this.subscriptions.clear();
     this.listeners.clear();
+    this.saveCorrelationManager.clear();
     this.getOpenDocumentsHook = undefined;
     this.reloadDocumentHook = undefined;
     logger.info('FileSystemWatcherService: disposed all watchers and subscriptions');

@@ -18,6 +18,7 @@ export const ProblemsPanel: React.FC = () => {
   const { openContextMenu } = useContextMenu();
   const workspaceContext = useWorkspace();
   const [filterSeverity, setFilterSeverity] = useState<string>('all');
+  const [filterSource, setFilterSource] = useState<string>('all');
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [serviceDiagnostics, setServiceDiagnostics] = useState<Diagnostic[]>(() =>
     globalDiagnosticService.getDiagnostics()
@@ -44,6 +45,14 @@ export const ProblemsPanel: React.FC = () => {
     return Array.from(map.values());
   }, [allProblems, serviceDiagnostics]);
 
+  const availableSources = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of combinedProblems) {
+      if (p.source) set.add(p.source);
+    }
+    return Array.from(set).sort();
+  }, [combinedProblems]);
+
   const errorCount = useMemo(() => {
     return combinedProblems.filter((p) => p.severity === 'error').length;
   }, [combinedProblems]);
@@ -59,6 +68,7 @@ export const ProblemsPanel: React.FC = () => {
 
   const filteredProblems = combinedProblems.filter((p) => {
     if (filterSeverity !== 'all' && p.severity !== filterSeverity) return false;
+    if (filterSource !== 'all' && p.source !== filterSource) return false;
     if (searchFilter.trim()) {
       const q = searchFilter.toLowerCase();
       return (
@@ -71,27 +81,42 @@ export const ProblemsPanel: React.FC = () => {
   });
 
   const handleProblemClick = async (problem: Problem) => {
-    // 1. Try to open or activate the file
+    // 1. Look up original Diagnostic if present to validate against DocumentEngine buffer
+    const originalDiag = serviceDiagnostics.find((d) => d.id === problem.id);
+    const target = originalDiag
+      ? globalDiagnosticService.validateNavigationTarget(originalDiag)
+      : {
+          valid: true,
+          uri: problem.file,
+          line: Math.max(1, problem.line || 1),
+          column: Math.max(1, problem.column || 1),
+          isResourceLevel: !problem.line || problem.line <= 0,
+        };
+
+    if (!target.valid) return;
+
+    // 2. Open or activate the file
     if (workspaceContext.openFilePath) {
-      await workspaceContext.openFilePath(problem.file);
+      await workspaceContext.openFilePath(target.uri);
     } else {
-      // Find open document matching file path
       const matching = workspaceContext.openDocs.find(
-        (d) => d.filePath === problem.file || d.title === problem.file
+        (d) => d.filePath === target.uri || d.title === target.uri
       );
       if (matching) {
         workspaceContext.activateDoc(matching.id);
       }
     }
 
-    // 2. Dispatch jump-to-line event for editor surface
-    setTimeout(() => {
-      window.dispatchEvent(
-        new CustomEvent('qm:editor:gotoline', {
-          detail: { line: problem.line, column: problem.column },
-        })
-      );
-    }, 50);
+    // 3. Dispatch jump-to-line event if not resource-level only
+    if (!target.isResourceLevel) {
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent('qm:editor:gotoline', {
+            detail: { line: target.line, column: target.column },
+          })
+        );
+      }, 50);
+    }
   };
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -176,6 +201,7 @@ export const ProblemsPanel: React.FC = () => {
             <select
               value={filterSeverity}
               onChange={(e) => setFilterSeverity(e.target.value)}
+              aria-label="Filter problems by severity"
               style={{
                 fontSize: '0.72rem',
                 background: 'var(--bg-primary)',
@@ -192,12 +218,39 @@ export const ProblemsPanel: React.FC = () => {
             </select>
           </div>
 
+          {/* Source / Provider Filter */}
+          {availableSources.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <select
+                value={filterSource}
+                onChange={(e) => setFilterSource(e.target.value)}
+                aria-label="Filter problems by source"
+                style={{
+                  fontSize: '0.72rem',
+                  background: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '3px',
+                  padding: '2px 4px',
+                }}
+              >
+                <option value="all">All Sources</option>
+                {availableSources.map((src) => (
+                  <option key={src} value={src}>
+                    {src}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Search Filter */}
           <input
             type="text"
             placeholder="Filter problems..."
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
+            aria-label="Filter problems text search"
             style={{
               fontSize: '0.72rem',
               background: 'var(--bg-primary)',
@@ -320,7 +373,8 @@ export const ProblemsPanel: React.FC = () => {
                 >
                   <FileText size={11} />
                   <span>
-                    {problem.file} [{problem.line}, {problem.column}]
+                    {problem.file}
+                    {problem.line > 0 ? ` [${problem.line}, ${problem.column}]` : ' [Resource]'}
                   </span>
                 </div>
               </div>

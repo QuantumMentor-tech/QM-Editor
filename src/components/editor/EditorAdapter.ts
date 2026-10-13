@@ -21,7 +21,7 @@ import {
   EditorSelection,
   Extension,
 } from '@codemirror/state';
-import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, selectAll } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, undoDepth, redoDepth, selectAll } from '@codemirror/commands';
 import {
   bracketMatching,
   foldGutter,
@@ -205,6 +205,24 @@ export interface EditorAdapterInterface {
   setDiagnostics(diagnostics: Diagnostic[]): void;
   clearDiagnostics(): void;
   getSelectedText(): string;
+  applyEdits?(changes: Array<{ from: number; to: number; insert: string }>): void;
+  getViewState?(): {
+    cursorPosition: { line: number; column: number };
+    selections: Array<{ anchor: number; head: number }>;
+    scrollPosition?: { top: number; left: number };
+  };
+  restoreViewState?(state: {
+    cursorPosition?: { line: number; column: number };
+    selections?: Array<{ anchor: number; head: number }>;
+    scrollPosition?: { top: number; left: number };
+  }): void;
+  undo?(): boolean;
+  redo?(): boolean;
+  canUndo?(): boolean;
+  canRedo?(): boolean;
+  clearHistory?(): void;
+  getHistoryDepth?(): { undoDepth: number; redoDepth: number };
+  selectAll?(): boolean;
   isComposing?(): boolean;
   focus(): void;
   dispose(): void;
@@ -215,6 +233,7 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
   private readOnlyCompartment = new Compartment();
   private themeCompartment = new Compartment();
   private languageCompartment = new Compartment();
+  private historyCompartment = new Compartment();
 
   // Settings Compartments
   private fontSizeCompartment = new Compartment();
@@ -301,7 +320,7 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
     const state = EditorState.create({
       doc: initialContent,
       extensions: [
-        history(),
+        this.historyCompartment.of([history()]),
         drawSelection(),
         dropCursor(),
         rectangularSelection(),
@@ -560,12 +579,109 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
     return this.view.state.sliceDoc(mainSel.from, mainSel.to);
   }
 
+  public applyEdits(changes: Array<{ from: number; to: number; insert: string }>): void {
+    if (!this.view || changes.length === 0) return;
+    this.isUpdatingProgrammatically = true;
+    try {
+      this.view.dispatch({
+        changes: changes.map((c) => ({ from: c.from, to: c.to, insert: c.insert })),
+      });
+    } finally {
+      this.isUpdatingProgrammatically = false;
+    }
+  }
+
+  public getViewState(): {
+    cursorPosition: { line: number; column: number };
+    selections: Array<{ anchor: number; head: number }>;
+    scrollPosition?: { top: number; left: number };
+  } {
+    if (!this.view) {
+      return { cursorPosition: { line: 1, column: 1 }, selections: [] };
+    }
+    const cursorPosition = this.getCursorPosition();
+    const selections = this.view.state.selection.ranges.map((r) => ({
+      anchor: r.anchor,
+      head: r.head,
+    }));
+    const scrollDOM = this.view.scrollDOM;
+    const scrollPosition = scrollDOM
+      ? { top: scrollDOM.scrollTop, left: scrollDOM.scrollLeft }
+      : undefined;
+
+    return { cursorPosition, selections, scrollPosition };
+  }
+
+  public restoreViewState(state: {
+    cursorPosition?: { line: number; column: number };
+    selections?: Array<{ anchor: number; head: number }>;
+    scrollPosition?: { top: number; left: number };
+  }): void {
+    if (!this.view) return;
+
+    if (state.selections && state.selections.length > 0) {
+      const maxLen = this.view.state.doc.length;
+      const validRanges = state.selections.map((s) =>
+        EditorSelection.range(
+          Math.max(0, Math.min(s.anchor, maxLen)),
+          Math.max(0, Math.min(s.head, maxLen))
+        )
+      );
+      this.view.dispatch({
+        selection: EditorSelection.create(validRanges, 0),
+      });
+    } else if (state.cursorPosition) {
+      this.goToLine(state.cursorPosition.line, state.cursorPosition.column);
+    }
+
+    if (state.scrollPosition && this.view.scrollDOM) {
+      this.view.scrollDOM.scrollTop = state.scrollPosition.top;
+      this.view.scrollDOM.scrollLeft = state.scrollPosition.left;
+    }
+  }
+
   public undo(): boolean {
-    return this.view ? undo(this.view) : false;
+    if (!this.view || this.view.state.readOnly) return false;
+    return undo(this.view);
   }
 
   public redo(): boolean {
-    return this.view ? redo(this.view) : false;
+    if (!this.view || this.view.state.readOnly) return false;
+    return redo(this.view);
+  }
+
+  public canUndo(): boolean {
+    if (!this.view || this.view.state.readOnly) return false;
+    return undoDepth(this.view.state) > 0;
+  }
+
+  public canRedo(): boolean {
+    if (!this.view || this.view.state.readOnly) return false;
+    return redoDepth(this.view.state) > 0;
+  }
+
+  public getHistoryDepth(): { undoDepth: number; redoDepth: number } {
+    if (!this.view) {
+      return { undoDepth: 0, redoDepth: 0 };
+    }
+    return {
+      undoDepth: undoDepth(this.view.state),
+      redoDepth: redoDepth(this.view.state),
+    };
+  }
+
+  public clearHistory(): void {
+    if (!this.view) return;
+    try {
+      this.view.dispatch({
+        effects: this.historyCompartment.reconfigure([]),
+      });
+      this.view.dispatch({
+        effects: this.historyCompartment.reconfigure([history()]),
+      });
+    } catch {
+      // Safe fallback
+    }
   }
 
   public selectAll(): boolean {

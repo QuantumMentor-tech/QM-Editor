@@ -191,6 +191,14 @@
 - **Go To Symbol Navigation (`GoToSymbolModal.tsx`):** Unified modal supporting document symbol jumps (`@` / `Mod+Shift+O`) and workspace symbol search (`#` / `Mod+T`) with keyboard navigation and kind badges.
 - **Outline Panel (`OutlinePanel.tsx`):** Sidebar outline tree reflecting document structure with active cursor tracking and one-click jump-to-definition.
 
+### 28. Document Engine, Resource Lifecycle & Cross-Service Coordination (Step 36)
+- **Authoritative Document Engine (`DocumentEngine.ts`):** Central manager coordinating document models, open resource lifecycles, and in-memory buffer authority.
+- **Resource Identity Subsystem (`ResourceIdentity.ts`):** Platform-normalized canonical URIs distinguishing physical (`file://`), W3C storage handles (`browser-fs://`), untitled (`untitled:`), and virtual resources.
+- **Duplicate Open Prevention:** Guaranteed activation of existing documents across File Explorer, Quick Open, Search, and Command Palette without duplicate buffer instances.
+- **Revision-Safe Save Protection:** Strict monotonic revision checkpoints preventing saves from dropping edits typed while a physical disk write is in-flight.
+- **External Filesystem Conflict Invariants:** Automatic safe reloads for clean documents, paired with conflict protection that never silently overwrites dirty buffers upon external disk changes.
+- **Resource Reassignment:** Preserves document runtime ID and edit history when saving untitled buffers or executing Save As.
+
 ---
 
 ## 📋 Progress Roadmap
@@ -230,6 +238,11 @@
 - [x] **Step 33:** Undo/Redo History, Edit Grouping & Transaction Safety
 - [x] **Step 34:** Diagnostics Model, Aggregation & Editor Integration
 - [x] **Step 35:** Symbol Infrastructure, Outline & Symbol Navigation
+- [x] **Step 36:** Document Engine, Resource Lifecycle & Cross-Service Coordination
+- [x] **Step 37:** Editor Engine Coordination, Text Model Transactions & Editing State
+- [x] **Step 38:** File Watching, External Change Detection & Resource Synchronization
+- [x] **Step 39:** Undo/Redo Integration, Edit History Integrity & Transaction Safety
+- [x] **Step 40:** Diagnostics, Problems, Markers & Issue Lifecycle Engine
 
 ## 🛠️ Technology Stack
 

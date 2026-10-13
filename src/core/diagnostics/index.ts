@@ -15,6 +15,9 @@ export type {
   DiagnosticChangeType,
   DiagnosticChangeEvent,
   DiagnosticChangeListener,
+  DiagnosticProvider,
+  DiagnosticProviderCapabilities,
+  SetDiagnosticsOptions,
 } from './DiagnosticTypes';
 
 export * from './DiagnosticErrors';

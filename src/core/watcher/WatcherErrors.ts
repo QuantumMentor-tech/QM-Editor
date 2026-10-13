@@ -40,3 +40,42 @@ export class ExternalChangeConflictError extends WatcherError {
     this.name = 'ExternalChangeConflictError';
   }
 }
+
+export class DuplicateWatcherError extends WatcherError {
+  constructor(rootUri: string) {
+    super(`A watcher is already registered for root: "${rootUri}".`, 'DUPLICATE_WATCHER', {
+      rootUri,
+    });
+    this.name = 'DuplicateWatcherError';
+  }
+}
+
+export class WorkspaceBoundaryViolationError extends WatcherError {
+  constructor(path: string, workspaceRoot: string) {
+    super(
+      `Watcher path "${path}" violates workspace boundary "${workspaceRoot}".`,
+      'WORKSPACE_BOUNDARY_VIOLATION',
+      { path, workspaceRoot }
+    );
+    this.name = 'WorkspaceBoundaryViolationError';
+  }
+}
+
+export class StaleWatcherEventError extends WatcherError {
+  constructor(uri: string, eventGen: number, currentGen: number) {
+    super(
+      `Watcher event for "${uri}" discarded: event generation ${eventGen} does not match current workspace generation ${currentGen}.`,
+      'STALE_WATCHER_EVENT',
+      { uri, eventGen, currentGen }
+    );
+    this.name = 'StaleWatcherEventError';
+  }
+}
+
+export class WatcherInitializationError extends WatcherError {
+  constructor(reason: string, details?: unknown) {
+    super(`Failed to initialize filesystem watcher: ${reason}`, 'WATCHER_INITIALIZATION_ERROR', details);
+    this.name = 'WatcherInitializationError';
+  }
+}
+

@@ -20,6 +20,8 @@ import { EditTransaction, CommittedEditTransaction, globalEditTransactionManager
 import { globalFileSystemWatcherService } from '../core/watcher';
 import { globalDocumentHistoryService } from '../core/history';
 import { globalDiagnosticService } from '../core/diagnostics';
+import { globalDocumentEngine } from '../core/documents';
+import { globalEditorCoordinationService } from '../core/editor';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -140,6 +142,13 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [openDocs, registry.documents]);
 
   const openDoc = (doc: DocumentModel) => {
+    if (!globalDocumentEngine.hasDocument(doc.id)) {
+      const uri = doc.fileResource?.uri || doc.filePath || doc.title;
+      globalDocumentEngine.openResource(uri, {
+        initialContent: doc.content,
+        languageId: doc.language,
+      }).catch(() => {});
+    }
     setRegistry((prev) => registerOpenDocument(prev, doc));
   };
 
@@ -149,6 +158,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       untitledCountRef.current += 1;
     }
     const newDoc = createNewDocument(docTitle, content, language);
+    globalDocumentEngine.openResource(newDoc.filePath || newDoc.title, {
+      initialContent: newDoc.content,
+      languageId: newDoc.language,
+    }).catch(() => {});
     setRegistry((prev) => registerOpenDocument(prev, newDoc));
   };
 
@@ -240,6 +253,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return;
     }
 
+    if (globalDocumentEngine.hasDocument(documentId)) {
+      globalDocumentEngine.close(documentId, true).catch(() => {});
+    }
     globalDocumentHistoryService.disposeDocument(documentId);
     if (!doc.filePath) {
       globalDiagnosticService.clearDocument(doc.title || documentId);
@@ -248,6 +264,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const updateText = (documentId: string, content: string) => {
+    if (globalDocumentEngine.hasDocument(documentId)) {
+      globalDocumentEngine.updateText(documentId, content).catch(() => {});
+    }
     setRegistry((prev) => updateDocumentText(prev, documentId, content));
   };
 
@@ -398,6 +417,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const confirmDiscardDirty = () => {
     if (dirtyCloseTarget) {
+      if (globalDocumentEngine.hasDocument(dirtyCloseTarget.id)) {
+        globalDocumentEngine.close(dirtyCloseTarget.id, true).catch(() => {});
+      }
       globalDocumentHistoryService.disposeDocument(dirtyCloseTarget.id);
       if (!dirtyCloseTarget.filePath) {
         globalDiagnosticService.clearDocument(dirtyCloseTarget.title || dirtyCloseTarget.id);
@@ -465,6 +487,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const undoDoc = async (documentId: string): Promise<boolean> => {
+    if (globalEditorCoordinationService.canUndo(documentId)) {
+      return await globalEditorCoordinationService.undo(documentId);
+    }
     const doc = registry.documents[documentId];
     if (!doc || !globalDocumentHistoryService.canUndo(documentId)) return false;
     try {
@@ -490,6 +515,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const redoDoc = async (documentId: string): Promise<boolean> => {
+    if (globalEditorCoordinationService.canRedo(documentId)) {
+      return await globalEditorCoordinationService.redo(documentId);
+    }
     const doc = registry.documents[documentId];
     if (!doc || !globalDocumentHistoryService.canRedo(documentId)) return false;
     try {
@@ -515,11 +543,17 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const canUndoDoc = (documentId: string): boolean => {
-    return globalDocumentHistoryService.canUndo(documentId);
+    return (
+      globalEditorCoordinationService.canUndo(documentId) ||
+      globalDocumentHistoryService.canUndo(documentId)
+    );
   };
 
   const canRedoDoc = (documentId: string): boolean => {
-    return globalDocumentHistoryService.canRedo(documentId);
+    return (
+      globalEditorCoordinationService.canRedo(documentId) ||
+      globalDocumentHistoryService.canRedo(documentId)
+    );
   };
 
   return (

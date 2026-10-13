@@ -21,10 +21,12 @@ import { workspaceSearchService } from '../../services/WorkspaceSearchService';
 import { workspaceIndexService } from '../../services/WorkspaceIndexService';
 import { globalWorkspaceEngine } from '../workspace';
 import { globalEditTransactionManager } from '../edit';
-import { globalFileSystemWatcherService } from '../watcher';
+import { globalFileSystemWatcherService, globalResourceSynchronizationService } from '../watcher';
 import { globalDocumentHistoryService } from '../history';
 import { globalDiagnosticService, setupTaskProblemsBridge } from '../diagnostics';
 import { globalSymbolService } from '../symbols';
+import { globalDocumentEngine } from '../documents';
+import { globalEditorCoordinationService } from '../editor';
 import { logger } from '../../utils/logger';
 
 /**
@@ -96,6 +98,40 @@ export function registerDefaultServices(runtime: ApplicationRuntime): void {
     instance: globalEditTransactionManager,
     initialize: () => {
       logger.info('Runtime: Edit Transaction Manager initialized');
+    },
+  });
+
+  // 4c. Document Engine & Resource Lifecycle Subsystem
+  runtime.registerService({
+    id: 'documentEngine',
+    name: 'Document Engine & Resource Lifecycle Service',
+    scope: 'application',
+    criticality: 'critical',
+    dependencies: ['file', 'editTransactionManager'],
+    instance: globalDocumentEngine,
+    initialize: () => {
+      logger.info('Runtime: Document Engine initialized');
+    },
+    dispose: (service) => {
+      service.dispose();
+      logger.info('Runtime: Document Engine disposed');
+    },
+  });
+
+  // 4d. Editor Engine Coordination & Text Model Transactions Subsystem
+  runtime.registerService({
+    id: 'editorCoordination',
+    name: 'Editor Engine Coordination & Transaction Service',
+    scope: 'application',
+    criticality: 'critical',
+    dependencies: ['documentEngine', 'editTransactionManager'],
+    instance: globalEditorCoordinationService,
+    initialize: () => {
+      logger.info('Runtime: Editor Coordination Service initialized');
+    },
+    dispose: (service) => {
+      service.dispose();
+      logger.info('Runtime: Editor Coordination Service disposed');
     },
   });
 
@@ -281,6 +317,23 @@ export function registerDefaultServices(runtime: ApplicationRuntime): void {
     dispose: (service) => {
       service.dispose();
       logger.info('Runtime: Filesystem Watcher disposed');
+    },
+  });
+
+  // 15b. Resource Synchronization & External Change Orchestration
+  runtime.registerService({
+    id: 'resourceSynchronization',
+    name: 'Resource Synchronization & Change Orchestration Service',
+    scope: 'application',
+    criticality: 'critical',
+    dependencies: ['watcher', 'documentEngine', 'editorCoordination'],
+    instance: globalResourceSynchronizationService,
+    initialize: () => {
+      logger.info('Runtime: Resource Synchronization Service initialized');
+    },
+    dispose: (service) => {
+      service.dispose();
+      logger.info('Runtime: Resource Synchronization Service disposed');
     },
   });
 

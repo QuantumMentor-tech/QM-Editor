@@ -47,6 +47,7 @@ export interface DocumentModel {
   savedRevision: number;
   isDirty: boolean;
   lastSavedTimestamp: number;
+  savedBaselineContent?: string;
 }
 
 export interface LanguageDefinition {

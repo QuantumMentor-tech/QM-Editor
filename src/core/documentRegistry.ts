@@ -1,5 +1,6 @@
 import { DocumentModel, FileResource } from '../types';
 import { updateDocumentContent, markDocumentSaved } from './document';
+import { areResourcesEqual } from './documents/ResourceIdentity';
 
 export interface DocumentRegistryState {
   documents: Record<string, DocumentModel>;
@@ -29,9 +30,14 @@ export const findExistingDocumentByResource = (
 ): DocumentModel | undefined => {
   if (!uriOrPath) return undefined;
   return Object.values(state.documents).find(
-    (doc) =>
-      doc.filePath === uriOrPath ||
-      doc.fileResource?.uri === uriOrPath
+    (doc) => {
+      const docUri = doc.fileResource?.uri || doc.filePath || '';
+      return (
+        doc.filePath === uriOrPath ||
+        doc.fileResource?.uri === uriOrPath ||
+        areResourcesEqual(docUri, uriOrPath)
+      );
+    }
   );
 };
 

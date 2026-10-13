@@ -35,6 +35,7 @@ export const createNewDocument = (
     savedRevision: 0,
     isDirty: false,
     lastSavedTimestamp: Date.now(),
+    savedBaselineContent: content,
   };
 };
 
@@ -47,12 +48,17 @@ export const updateDocumentContent = (
   }
 
   const nextContentRevision = document.contentRevision + 1;
-  const isDirty = nextContentRevision !== document.savedRevision;
+  const isBaselineEqual =
+    document.savedBaselineContent !== undefined
+      ? document.savedBaselineContent === newContent
+      : false;
+  const isDirty = !isBaselineEqual && nextContentRevision !== document.savedRevision;
 
   return {
     ...document,
     content: newContent,
     contentRevision: nextContentRevision,
+    savedBaselineContent: document.savedBaselineContent,
     isDirty,
   };
 };
@@ -63,7 +69,8 @@ export const markDocumentSaved = (
   newFileResource?: FileResource,
   newFilePath?: string
 ): DocumentModel => {
-  const targetSavedRevision = savedRevisionTarget !== undefined ? savedRevisionTarget : document.contentRevision;
+  const targetSavedRevision =
+    savedRevisionTarget !== undefined ? savedRevisionTarget : document.contentRevision;
   const isStillDirty = document.contentRevision !== targetSavedRevision;
 
   const resource = newFileResource || document.fileResource;
@@ -78,6 +85,7 @@ export const markDocumentSaved = (
     fileResource: resource,
     language: resolved.id !== 'plaintext' ? resolved.id : document.language,
     savedRevision: targetSavedRevision,
+    savedBaselineContent: document.content,
     isDirty: isStillDirty,
     lastSavedTimestamp: Date.now(),
   };

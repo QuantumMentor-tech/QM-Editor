@@ -40,6 +40,72 @@ export interface WatcherSubscription {
   disposed: boolean;
 }
 
+// ---------------------------------------------------------------------------
+// Native Watcher Abstraction & Health Contracts
+// ---------------------------------------------------------------------------
+
+export interface WatchHandle {
+  id: string;
+  rootUri: string;
+  recursive: boolean;
+  stop: () => Promise<void>;
+}
+
+export interface FileWatchAdapter {
+  readonly name: string;
+  isAvailable(): boolean;
+  watch(
+    rootUri: string,
+    onEvent: (event: RawFileSystemEvent) => void,
+    options?: WatcherSubscriptionOptions
+  ): Promise<WatchHandle>;
+  dispose(): Promise<void>;
+}
+
+export interface WatcherHealthReport {
+  status: 'healthy' | 'degraded' | 'disabled' | 'error';
+  activeWatchersCount: number;
+  activeSubscriptionsCount: number;
+  adapterName: string;
+  lastError?: string;
+  uptimeMs?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Change Classification & Correlation Contracts
+// ---------------------------------------------------------------------------
+
+export type ChangeClassificationType =
+  | 'unopened_resource'
+  | 'clean_document_reload'
+  | 'dirty_document_conflict'
+  | 'external_delete'
+  | 'external_rename'
+  | 'external_recreate'
+  | 'internal_save'
+  | 'ignored_path';
+
+export interface ClassifiedResourceChange {
+  uri: string;
+  type: FileSystemChangeType;
+  classification: ChangeClassificationType;
+  documentId?: string;
+  oldUri?: string;
+  timestamp: number;
+  workspaceGeneration: number;
+  conflictReason?: string;
+  newContent?: string;
+}
+
+export interface SaveCorrelationTicket {
+  operationId: string;
+  workspaceId?: string;
+  resourceUri: string;
+  expectedRevision?: number;
+  timestamp: number;
+  expiresAt: number;
+}
+
 export type ExternalChangeConflictState =
   | 'none'
   | 'conflict_detected'
@@ -68,6 +134,17 @@ export interface WatcherEventMap {
     subscriptionId: string;
     targetUri: string;
   };
+  'watcher.rootStarted': {
+    rootUri: string;
+    handleId: string;
+  };
+  'watcher.rootStopped': {
+    rootUri: string;
+    handleId: string;
+  };
+  'watcher.healthChanged': {
+    health: WatcherHealthReport;
+  };
   'watcher.externalChangeDetected': {
     uri: string;
     type: FileSystemChangeType;
@@ -83,9 +160,37 @@ export interface WatcherEventMap {
     uri: string;
     resolution: 'keep_local' | 'revert_disk';
   };
+  'synchronization.changeClassified': {
+    change: ClassifiedResourceChange;
+  };
+  'synchronization.documentReloaded': {
+    documentId: string;
+    resourceUri: string;
+    newRevision: number;
+  };
+  'synchronization.conflictDetected': {
+    documentId: string;
+    resourceUri: string;
+    localRevision: number;
+    reason: string;
+  };
+  'synchronization.resourceDeleted': {
+    documentId?: string;
+    resourceUri: string;
+  };
+  'synchronization.resourceRenamed': {
+    documentId?: string;
+    oldResourceUri: string;
+    newResourceUri: string;
+  };
+  'synchronization.resourceRecreated': {
+    documentId?: string;
+    resourceUri: string;
+  };
 }
 
 export type WatcherEventKey = keyof WatcherEventMap;
 export type WatcherEventListener<K extends WatcherEventKey> = (
   payload: WatcherEventMap[K]
 ) => void | Promise<void>;
+

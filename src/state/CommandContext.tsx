@@ -23,6 +23,7 @@ import { SourceControlDiffModal } from '../components/source-control/SourceContr
 import { GoToSymbolModal } from '../components/symbols/GoToSymbolModal';
 import { workspaceIndexService } from '../services/WorkspaceIndexService';
 import { fileService } from '../services/FileService';
+import { globalEditorCoordinationService } from '../core/editor';
 
 export interface CommandContextApi {
   registry: CommandRegistry;
@@ -408,8 +409,20 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const editorActions = {
-    undo: () => window.dispatchEvent(new CustomEvent('qm:editor:undo')),
-    redo: () => window.dispatchEvent(new CustomEvent('qm:editor:redo')),
+    undo: () => {
+      if (activeDoc) {
+        globalEditorCoordinationService.undo(activeDoc.id);
+      } else {
+        window.dispatchEvent(new CustomEvent('qm:editor:undo'));
+      }
+    },
+    redo: () => {
+      if (activeDoc) {
+        globalEditorCoordinationService.redo(activeDoc.id);
+      } else {
+        window.dispatchEvent(new CustomEvent('qm:editor:redo'));
+      }
+    },
     selectAll: () => window.dispatchEvent(new CustomEvent('qm:editor:selectall')),
     cut: () => window.dispatchEvent(new CustomEvent('qm:editor:cut')),
     copy: () => window.dispatchEvent(new CustomEvent('qm:editor:copy')),

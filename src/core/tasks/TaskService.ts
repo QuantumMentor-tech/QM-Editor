@@ -16,6 +16,12 @@ import { logger } from '../../utils/logger';
 
 export type TaskServiceListener = () => void;
 
+export interface TaskExecutionLifecycleListener {
+  onTaskStarted?(taskId: string, sessionId: string): void;
+  onTaskFinished?(taskId: string, sessionId: string, problems: Problem[], workspaceId: string): void;
+  onProblemsCleared?(): void;
+}
+
 export class TaskService {
   private static instance: TaskService;
   private tasks: Map<string, TaskDefinition> = new Map();
@@ -24,6 +30,7 @@ export class TaskService {
   private trustState: WorkspaceTrustState = 'trusted';
   private executor: TaskExecutor = new TaskExecutor();
   private listeners: Set<TaskServiceListener> = new Set();
+  private lifecycleListeners: Set<TaskExecutionLifecycleListener> = new Set();
   private problemsByTask: Map<string, Problem[]> = new Map();
 
   private constructor() {
@@ -194,6 +201,13 @@ export class TaskService {
 
   public clearProblems(): void {
     this.problemsByTask.clear();
+    for (const l of this.lifecycleListeners) {
+      try {
+        l.onProblemsCleared?.();
+      } catch (err) {
+        logger.error('Error in task lifecycle listener onProblemsCleared', { error: (err as Error).message });
+      }
+    }
     this.notify();
   }
 
@@ -201,6 +215,13 @@ export class TaskService {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
+    };
+  }
+
+  public addLifecycleListener(listener: TaskExecutionLifecycleListener): () => void {
+    this.lifecycleListeners.add(listener);
+    return () => {
+      this.lifecycleListeners.delete(listener);
     };
   }
 
@@ -225,6 +246,13 @@ export class TaskService {
 
     // Clear stale diagnostics for this task
     this.problemsByTask.delete(task.id);
+    for (const l of this.lifecycleListeners) {
+      try {
+        l.onTaskStarted?.(task.id, sessionId);
+      } catch (err) {
+        logger.error('Error in task lifecycle listener onTaskStarted', { error: (err as Error).message });
+      }
+    }
     this.notify();
 
     await this.executor.execute(task, session, {
@@ -238,6 +266,13 @@ export class TaskService {
       onExit: () => {
         // Update problem store
         this.problemsByTask.set(task.id, [...session.problems]);
+        for (const l of this.lifecycleListeners) {
+          try {
+            l.onTaskFinished?.(task.id, sessionId, session.problems, workspaceId);
+          } catch (err) {
+            logger.error('Error in task lifecycle listener onTaskFinished', { error: (err as Error).message });
+          }
+        }
         this.notify();
       },
     });

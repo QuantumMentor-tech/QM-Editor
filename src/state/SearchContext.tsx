@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { SearchQuery, SearchMatch } from '../types';
 import { searchService } from '../services/SearchService';
 import { useWorkspace } from './WorkspaceContext';
+import { globalEditorCoordinationService } from '../core/editor';
+import { globalDocumentEngine } from '../core/documents';
 import { logger } from '../utils/logger';
 
 export interface SearchContextType {
@@ -22,8 +24,8 @@ export interface SearchContextType {
   toggleRegex: () => void;
   findNext: () => void;
   findPrevious: () => void;
-  replaceCurrent: () => void;
-  replaceAll: () => void;
+  replaceCurrent: () => void | Promise<void>;
+  replaceAll: () => void | Promise<void>;
 }
 
 const SearchContext = createContext<SearchContextType | undefined>(undefined);
@@ -112,25 +114,58 @@ export const SearchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCurrentMatchIndex((prev) => (prev - 1 + matches.length) % matches.length);
   };
 
-  const replaceCurrent = () => {
+  const replaceCurrent = async () => {
     if (!activeDoc || !currentMatch || activeDoc.fileResource?.readOnly) {
       logger.warn('Replace current blocked or unavailable');
       return;
     }
 
-    const { newContent } = searchService.replaceMatch(activeDoc.content, currentMatch, replaceText);
-    updateText(activeDoc.id, newContent);
+    const res = await globalEditorCoordinationService.applyTransaction({
+      documentId: activeDoc.id,
+      expectedRevision: activeDoc.contentRevision,
+      source: 'replace',
+      changes: [
+        {
+          from: currentMatch.from,
+          to: currentMatch.to,
+          insertText: replaceText,
+        },
+      ],
+      description: 'Replace match',
+    });
+
+    if (res.status === 'applied') {
+      const doc = globalDocumentEngine.getDocument(activeDoc.id);
+      if (doc) {
+        updateText(activeDoc.id, doc.content);
+      }
+    }
   };
 
-  const replaceAll = () => {
+  const replaceAll = async () => {
     if (!activeDoc || matches.length === 0 || activeDoc.fileResource?.readOnly) {
       logger.warn('Replace all blocked or unavailable');
       return;
     }
 
-    const { newContent, replaceCount } = searchService.replaceAllMatches(activeDoc.content, matches, replaceText);
-    if (replaceCount > 0) {
-      updateText(activeDoc.id, newContent);
+    const sortedMatches = [...matches].sort((a, b) => a.from - b.from);
+    const res = await globalEditorCoordinationService.applyTransaction({
+      documentId: activeDoc.id,
+      expectedRevision: activeDoc.contentRevision,
+      source: 'replace',
+      changes: sortedMatches.map((m) => ({
+        from: m.from,
+        to: m.to,
+        insertText: replaceText,
+      })),
+      description: 'Replace all matches',
+    });
+
+    if (res.status === 'applied') {
+      const doc = globalDocumentEngine.getDocument(activeDoc.id);
+      if (doc) {
+        updateText(activeDoc.id, doc.content);
+      }
     }
   };
 

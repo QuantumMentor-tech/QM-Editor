@@ -3,6 +3,8 @@ import { WorkspaceSearchQuery, WorkspaceMatchItem, WorkspaceFileSearchResult } f
 import { searchService } from './SearchService';
 import { fileService } from './FileService';
 import { DocumentModel } from '../types';
+import { globalEditorCoordinationService } from '../core/editor';
+import { globalDocumentEngine } from '../core/documents';
 import { logger } from '../utils/logger';
 
 export interface FileReplaceItemPlan {
@@ -164,8 +166,29 @@ export class WorkspaceReplaceService {
       );
 
       try {
-        if (openDoc && updateText) {
-          // Synchronize open document tab in-memory
+        if (openDoc && globalDocumentEngine.hasDocument(openDoc.id)) {
+          const matchEdits = filePlan.matches.map((m) => ({
+            from: m.from,
+            to: m.to,
+            insertText: plan.replaceText,
+          }));
+          matchEdits.sort((a, b) => a.from - b.from);
+          const txRes = await globalEditorCoordinationService.applyTransaction({
+            documentId: openDoc.id,
+            expectedRevision: openDoc.contentRevision,
+            source: 'replace',
+            changes: matchEdits,
+            description: 'Multi-file replace',
+          });
+
+          if (txRes.status !== 'applied') {
+            throw new Error(txRes.error || `Transaction failed with status ${txRes.status}`);
+          }
+          if (updateText) {
+            updateText(openDoc.id, filePlan.newContent);
+          }
+        } else if (openDoc && updateText) {
+          // Synchronize open document tab in-memory fallback
           updateText(openDoc.id, filePlan.newContent);
         } else {
           // Write directly to disk for closed files

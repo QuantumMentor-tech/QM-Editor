@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { TreeNodeModel } from '../../types';
 import { useSourceControl } from '../../state/SourceControlContext';
 import { useContextMenu } from '../../state/ContextMenuContext';
-import { ChevronRight, ChevronDown, Folder, FolderOpen, FileText, Loader2, AlertCircle } from 'lucide-react';
+import { ChevronRight, ChevronDown, Folder, FolderOpen, FileText, Loader2, AlertCircle, AlertTriangle } from 'lucide-react';
+import { globalDiagnosticService, normalizeDiagnosticUri, DiagnosticSummary } from '../../core/diagnostics';
 
 export interface TreeNodeRowProps {
   node: TreeNodeModel;
@@ -32,6 +33,47 @@ export const TreeNodeRow: React.FC<TreeNodeRowProps> = ({
   const fileStatus = !isDirectory && scState.isGitRepository
     ? scState.fileStatuses.get(node.uri.toLowerCase())
     : undefined;
+
+  const [diagSummary, setDiagSummary] = useState<DiagnosticSummary>(() => {
+    return isDirectory
+      ? globalDiagnosticService.getDirectorySummary(node.uri)
+      : globalDiagnosticService.getResourceSummary(node.uri);
+  });
+
+  useEffect(() => {
+    const checkSummary = () => {
+      const nextSummary = isDirectory
+        ? globalDiagnosticService.getDirectorySummary(node.uri)
+        : globalDiagnosticService.getResourceSummary(node.uri);
+      setDiagSummary((prev) => {
+        if (
+          prev.errorCount === nextSummary.errorCount &&
+          prev.warningCount === nextSummary.warningCount &&
+          prev.total === nextSummary.total
+        ) {
+          return prev;
+        }
+        return nextSummary;
+      });
+    };
+
+    const unsubscribe = globalDiagnosticService.subscribe((event) => {
+      if (event.type === 'cleared' || event.uris.length === 0) {
+        checkSummary();
+      } else {
+        const normNode = normalizeDiagnosticUri(node.uri);
+        const isRelevant = event.uris.some((u) => {
+          const normU = normalizeDiagnosticUri(u);
+          return normU === normNode || (isDirectory && normU.startsWith(normNode + '/'));
+        });
+        if (isRelevant) {
+          checkSummary();
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [node.uri, isDirectory]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -64,6 +106,50 @@ export const TreeNodeRow: React.FC<TreeNodeRowProps> = ({
   const getTextColor = (): string => {
     if (isActive) return 'var(--text-accent)';
     return 'var(--text-primary)';
+  };
+
+  const renderDiagnosticBadge = () => {
+    if (diagSummary.errorCount > 0) {
+      return (
+        <span
+          title={`${diagSummary.errorCount} ${diagSummary.errorCount === 1 ? 'error' : 'errors'}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '2px',
+            fontSize: '0.68rem',
+            fontWeight: 600,
+            color: 'var(--accent-error, #f85149)',
+            marginLeft: '4px',
+            flexShrink: 0,
+          }}
+        >
+          <AlertCircle size={10} />
+          {diagSummary.errorCount}
+        </span>
+      );
+    }
+    if (diagSummary.warningCount > 0) {
+      return (
+        <span
+          title={`${diagSummary.warningCount} ${diagSummary.warningCount === 1 ? 'warning' : 'warnings'}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '2px',
+            fontSize: '0.68rem',
+            fontWeight: 600,
+            color: 'var(--accent-warning, #d29922)',
+            marginLeft: '4px',
+            flexShrink: 0,
+          }}
+        >
+          <AlertTriangle size={10} />
+          {diagSummary.warningCount}
+        </span>
+      );
+    }
+    return null;
   };
 
   const renderStatusBadge = () => {
@@ -110,7 +196,7 @@ export const TreeNodeRow: React.FC<TreeNodeRowProps> = ({
     );
   };
 
-  const accessibleLabel = `${node.name}${isDirectory ? (isExpanded ? ', expanded folder' : ', collapsed folder') : ''}${fileStatus ? `, Git ${fileStatus.displayStatus}` : ''}${isActive ? ', active document' : ''}`;
+  const accessibleLabel = `${node.name}${isDirectory ? (isExpanded ? ', expanded folder' : ', collapsed folder') : ''}${fileStatus ? `, Git ${fileStatus.displayStatus}` : ''}${diagSummary.errorCount > 0 ? `, ${diagSummary.errorCount} error${diagSummary.errorCount === 1 ? '' : 's'}` : ''}${diagSummary.warningCount > 0 ? `, ${diagSummary.warningCount} warning${diagSummary.warningCount === 1 ? '' : 's'}` : ''}${isActive ? ', active document' : ''}`;
 
   return (
     <div
@@ -199,6 +285,9 @@ export const TreeNodeRow: React.FC<TreeNodeRowProps> = ({
 
       {/* Git Status Badge */}
       {renderStatusBadge()}
+
+      {/* Diagnostics Badge */}
+      {renderDiagnosticBadge()}
 
       {/* Error indicator */}
       {node.error && (

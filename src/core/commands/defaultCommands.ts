@@ -1,5 +1,6 @@
 import { Command } from './CommandTypes';
 import { globalFocusManager } from '../accessibility/FocusManager';
+import { globalEditorCoordinationService } from '../editor';
 
 export const defaultCommands: Command[] = [
   {
@@ -606,13 +607,19 @@ export const defaultCommands: Command[] = [
     label: 'Undo',
     category: 'editor',
     shortcut: 'Mod+Z',
+    aliases: ['edit.undo'],
     description: 'Undo the last editing action in the active document',
-    canExecute: (ctx) => Boolean(ctx.activeDoc && !ctx.activeDoc.fileResource?.readOnly),
-    execute: (ctx) => {
-      if (ctx.editorActions?.undo) {
+    canExecute: (ctx) =>
+      Boolean(
+        ctx.activeDoc &&
+          !ctx.activeDoc.fileResource?.readOnly &&
+          globalEditorCoordinationService.canUndo(ctx.activeDoc.id)
+      ),
+    execute: async (ctx) => {
+      if (ctx.activeDoc) {
+        await globalEditorCoordinationService.undo(ctx.activeDoc.id);
+      } else if (ctx.editorActions?.undo) {
         ctx.editorActions.undo();
-      } else {
-        window.dispatchEvent(new CustomEvent('qm:editor:undo'));
       }
     },
   },
@@ -621,13 +628,19 @@ export const defaultCommands: Command[] = [
     label: 'Redo',
     category: 'editor',
     shortcut: 'Mod+Y',
+    aliases: ['edit.redo'],
     description: 'Redo the last undone editing action',
-    canExecute: (ctx) => Boolean(ctx.activeDoc && !ctx.activeDoc.fileResource?.readOnly),
-    execute: (ctx) => {
-      if (ctx.editorActions?.redo) {
+    canExecute: (ctx) =>
+      Boolean(
+        ctx.activeDoc &&
+          !ctx.activeDoc.fileResource?.readOnly &&
+          globalEditorCoordinationService.canRedo(ctx.activeDoc.id)
+      ),
+    execute: async (ctx) => {
+      if (ctx.activeDoc) {
+        await globalEditorCoordinationService.redo(ctx.activeDoc.id);
+      } else if (ctx.editorActions?.redo) {
         ctx.editorActions.redo();
-      } else {
-        window.dispatchEvent(new CustomEvent('qm:editor:redo'));
       }
     },
   },
