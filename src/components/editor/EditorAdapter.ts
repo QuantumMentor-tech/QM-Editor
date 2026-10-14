@@ -224,6 +224,8 @@ export interface EditorAdapterInterface {
   getHistoryDepth?(): { undoDepth: number; redoDepth: number };
   selectAll?(): boolean;
   isComposing?(): boolean;
+  posAtCoords?(coords: { x: number; y: number }): { line: number; column: number } | null;
+  coordsAtPos?(pos?: number): { left: number; top: number; bottom: number } | null;
   focus(): void;
   dispose(): void;
 }
@@ -515,6 +517,21 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
     const lineObj = this.view.state.doc.lineAt(pos);
     const column = pos - lineObj.from + 1;
     return { line: lineObj.number, column };
+  }
+
+  public posAtCoords(coords: { x: number; y: number }): { line: number; column: number } | null {
+    if (!this.view) return null;
+    const offset = this.view.posAtCoords(coords);
+    if (offset === null) return null;
+    const lineObj = this.view.state.doc.lineAt(offset);
+    return { line: lineObj.number, column: offset - lineObj.from + 1 };
+  }
+
+  public coordsAtPos(pos?: number): { left: number; top: number; bottom: number } | null {
+    if (!this.view) return null;
+    const targetPos = pos !== undefined ? pos : this.view.state.selection.main.head;
+    const rect = this.view.coordsAtPos(targetPos);
+    return rect ? { left: rect.left, top: rect.top, bottom: rect.bottom } : null;
   }
 
   public goToLine(line: number, column: number = 1): void {

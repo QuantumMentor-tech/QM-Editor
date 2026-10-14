@@ -10,6 +10,8 @@ export type TransactionOrigin =
   | 'replace'
   | 'format'
   | 'snippet'
+  | 'completion'
+  | 'codeAction'
   | 'ime'
   | 'remote'
   | 'programmatic';

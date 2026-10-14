@@ -96,3 +96,5 @@ export class NavigationService {
     }
   }
 }
+
+export const globalNavigationService = new NavigationService();

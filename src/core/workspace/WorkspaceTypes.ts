@@ -84,3 +84,19 @@ export interface WorkspaceOpenOptions {
 }
 
 export type UnsavedChangesChecker = () => Promise<boolean> | boolean;
+
+export interface SessionRestoreResult {
+  readonly status: 'restored' | 'no_session' | 'stale_generation' | 'failed';
+  readonly workspaceId: string;
+  readonly generation: number;
+  readonly restoredCount: number;
+  readonly skippedPaths: string[];
+  readonly activeRestored: boolean;
+  readonly error?: string;
+}
+
+export interface WorkspacePersistenceConfig {
+  readonly autoSaveSession?: boolean;
+  readonly debounceMs?: number;
+  readonly maxRecentWorkspaces?: number;
+}

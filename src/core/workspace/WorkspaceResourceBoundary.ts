@@ -73,9 +73,28 @@ export function isWindowsStylePath(path: string): boolean {
   return /^[a-zA-Z]:/.test(clean);
 }
 
+function parseUriSchemeAndPath(uri: string): { scheme: string; path: string } {
+  let scheme = '';
+  let path = uri.trim().replace(/\\/g, '/');
+
+  const match = path.match(/^([a-zA-Z0-9+.-]+:\/\/)/);
+  if (match) {
+    scheme = match[1];
+    path = path.slice(scheme.length);
+  }
+
+  // If file URI on Windows with leading slash: file:///C:/path -> scheme='file://', path='C:/path'
+  if ((scheme === 'file://' || !scheme) && /^\/[a-zA-Z]:/.test(path)) {
+    path = path.slice(1);
+  }
+
+  return { scheme, path };
+}
+
 /**
  * Checks whether a target resource path/URI is strictly contained inside a workspace root.
  * Guarantees that similar directory prefixes (e.g. C:/project vs C:/project-other) do NOT collide.
+ * Seamlessly handles file:// URIs and standard local filesystem paths.
  */
 export function isResourceInRoot(
   rootUri: string,
@@ -87,11 +106,30 @@ export function isResourceInRoot(
   const normRoot = normalizeWorkspacePath(rootUri);
   const normResource = normalizeWorkspacePath(resourceUri);
 
-  const isWin = isWindowsStylePath(normRoot) || isWindowsStylePath(normResource);
+  const parsedRoot = parseUriSchemeAndPath(normRoot);
+  const parsedResource = parseUriSchemeAndPath(normResource);
+
+  const isFileRoot = !parsedRoot.scheme || parsedRoot.scheme === 'file://';
+  const isFileResource = !parsedResource.scheme || parsedResource.scheme === 'file://';
+
+  let compareRootPath: string;
+  let compareResourcePath: string;
+
+  if (isFileRoot && isFileResource) {
+    compareRootPath = parsedRoot.path;
+    compareResourcePath = parsedResource.path;
+  } else if (parsedRoot.scheme === parsedResource.scheme) {
+    compareRootPath = parsedRoot.path;
+    compareResourcePath = parsedResource.path;
+  } else {
+    return false;
+  }
+
+  const isWin = isWindowsStylePath(compareRootPath) || isWindowsStylePath(compareResourcePath);
   const caseSensitive = options.caseSensitive ?? !isWin;
 
-  const compareRoot = caseSensitive ? normRoot : normRoot.toLowerCase();
-  const compareResource = caseSensitive ? normResource : normResource.toLowerCase();
+  const compareRoot = caseSensitive ? compareRootPath : compareRootPath.toLowerCase();
+  const compareResource = caseSensitive ? compareResourcePath : compareResourcePath.toLowerCase();
 
   // Exact root match
   if (compareRoot === compareResource) {
@@ -141,12 +179,22 @@ export function getRelativeResourcePath(rootUri: string, resourceUri: string): s
   const normRoot = normalizeWorkspacePath(rootUri);
   const normResource = normalizeWorkspacePath(resourceUri);
 
-  if (normRoot === normResource) {
+  const parsedRoot = parseUriSchemeAndPath(normRoot);
+  const parsedResource = parseUriSchemeAndPath(normResource);
+
+  const rootPath = parsedRoot.path;
+  const resPath = parsedResource.path;
+
+  const isWin = isWindowsStylePath(rootPath) || isWindowsStylePath(resPath);
+  const rootComp = isWin ? rootPath.toLowerCase() : rootPath;
+  const resComp = isWin ? resPath.toLowerCase() : resPath;
+
+  if (rootComp === resComp) {
     return '';
   }
 
-  const prefix = normRoot.endsWith('/') ? normRoot : `${normRoot}/`;
-  return normResource.slice(prefix.length);
+  const prefixLen = rootPath.endsWith('/') ? rootPath.length : rootPath.length + 1;
+  return resPath.slice(prefixLen);
 }
 
 /**

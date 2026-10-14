@@ -22,8 +22,8 @@ import { WorkspaceSearchModal } from '../components/search/WorkspaceSearchModal'
 import { SourceControlDiffModal } from '../components/source-control/SourceControlDiffModal';
 import { GoToSymbolModal } from '../components/symbols/GoToSymbolModal';
 import { workspaceIndexService } from '../services/WorkspaceIndexService';
-import { fileService } from '../services/FileService';
 import { globalEditorCoordinationService } from '../core/editor';
+import { globalNavigationCoordinator } from '../core/navigation';
 
 export interface CommandContextApi {
   registry: CommandRegistry;
@@ -79,7 +79,7 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
   } = useWorkspace();
   const { workspaceRoot, openWorkspace, refreshWorkspace, revealActiveFile } = useExplorer();
   const { openSearch, closeSearch, findNext, findPrevious, replaceCurrent, replaceAll } = useSearch();
-  const { navigateBack, navigateForward, canNavigateBack, canNavigateForward, currentPos } = useNavigation();
+  const { canNavigateBack, canNavigateForward, currentPos } = useNavigation();
   const { refresh: refreshSCM, getDiff: getDiffSCM } = useSourceControl();
   const { createTerminal, clearActiveTerminal, closeTerminal, activeSessionId, writeToActive } = useTerminal();
   const { runTask, runBuildTask, runTestTask, cancelTask, activeSession: activeTaskSession } = useTasks();
@@ -166,35 +166,11 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const handleNavigateBack = async () => {
-    const loc = navigateBack();
-    if (!loc) return;
-    const targetDoc = openDocs.find((d) => d.id === loc.documentId || (d.filePath && d.filePath === loc.filePath));
-    if (targetDoc) {
-      activateDoc(targetDoc.id);
-      window.dispatchEvent(new CustomEvent('qm:editor:gotoline', { detail: { line: loc.line, column: loc.column } }));
-    } else if (loc.filePath && openFilePath) {
-      const exists = await fileService.fileExists(loc.filePath);
-      if (exists) {
-        await openFilePath(loc.filePath);
-        window.dispatchEvent(new CustomEvent('qm:editor:gotoline', { detail: { line: loc.line, column: loc.column } }));
-      }
-    }
+    await globalNavigationCoordinator.navigateBack();
   };
 
   const handleNavigateForward = async () => {
-    const loc = navigateForward();
-    if (!loc) return;
-    const targetDoc = openDocs.find((d) => d.id === loc.documentId || (d.filePath && d.filePath === loc.filePath));
-    if (targetDoc) {
-      activateDoc(targetDoc.id);
-      window.dispatchEvent(new CustomEvent('qm:editor:gotoline', { detail: { line: loc.line, column: loc.column } }));
-    } else if (loc.filePath && openFilePath) {
-      const exists = await fileService.fileExists(loc.filePath);
-      if (exists) {
-        await openFilePath(loc.filePath);
-        window.dispatchEvent(new CustomEvent('qm:editor:gotoline', { detail: { line: loc.line, column: loc.column } }));
-      }
-    }
+    await globalNavigationCoordinator.navigateForward();
   };
 
   const handleGoToSymbolModal = (initialMode: 'document' | 'workspace' = 'document') => {
@@ -205,24 +181,18 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
         activeDoc={activeDoc}
         onNavigate={async (uri, line, col) => {
           closeDialog();
-          const existing = openDocs.find(
-            (d) =>
-              (d.fileResource && d.fileResource.uri.toLowerCase() === uri.toLowerCase()) ||
-              (d.filePath && d.filePath.toLowerCase() === uri.toLowerCase()) ||
-              d.title.toLowerCase() === uri.toLowerCase()
+          await globalNavigationCoordinator.navigateToLocation(
+            {
+              uri,
+              range: {
+                startLine: line,
+                startColumn: col,
+                endLine: line,
+                endColumn: col,
+              },
+            },
+            { origin: 'goto-symbol' }
           );
-
-          if (existing) {
-            activateDoc(existing.id);
-          } else if (openFilePath) {
-            await openFilePath(uri);
-          }
-
-          setTimeout(() => {
-            window.dispatchEvent(
-              new CustomEvent('qm:editor:gotoline', { detail: { line, column: col } })
-            );
-          }, 40);
         }}
         onClose={closeDialog}
       />

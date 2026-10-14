@@ -7,3 +7,4 @@ export * from './SymbolTypes';
 export * from './CancellationToken';
 export * from './SymbolExtractors';
 export * from './SymbolService';
+export * from './SymbolEngine';

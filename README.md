@@ -243,6 +243,74 @@
 - [x] **Step 38:** File Watching, External Change Detection & Resource Synchronization
 - [x] **Step 39:** Undo/Redo Integration, Edit History Integrity & Transaction Safety
 - [x] **Step 40:** Diagnostics, Problems, Markers & Issue Lifecycle Engine
+- [x] **Step 41:** Code Navigation, Symbols, Locations & Outline Engine
+- [x] **Step 42:** Language Intelligence Provider Architecture & Completion Framework
+- [x] **Step 43:** Hover Information, Signature Help & Contextual Language Intelligence
+- [x] **Step 44:** Code Actions, Quick Fixes & Safe Code Transformation Foundation
+- [x] **Step 45:** Core Engine Integration, Cross-Service Hardening & Phase 04 Completion Audit (Phase 04 Complete)
+- [x] **Step 46:** Data & Storage Architecture Foundation, Persistence Boundaries & Schema Governance (Phase 05 Started)
+- [x] **Step 47:** Persistent Workspace State, Metadata & Session Storage
+- [x] **Step 48:** Persistent Document Metadata, Resource State & Document Persistence Foundation
+- [x] **Step 49:** Persistent Settings, Preferences & Configuration Storage
+
+### 35. Persistent Workspace State, Metadata & Session Storage (Step 47)
+- **Authoritative Coordinator (`WorkspacePersistenceCoordinator.ts`):** Bridges runtime engines (`WorkspaceEngine`, `DocumentEngine`, `EditorCoordinationService`) with Phase 05 storage repositories (`WorkspaceStateRepository`, `SessionStateRepository`), ensuring the Workspace Engine remains the sole runtime authority while storage provides durable restoration.
+- **Single Canonical Workspace Identity:** Derives stable identity directly from normalized canonical root URIs (`ws-${normUri}`), collapsing path format variants (Windows slashes, casing, drive letters) without creating competing or duplicate storage IDs.
+- **Resilient & Partial Session Restoration:** Restores open file references, active document tab, and cursor position with individual safety shields. Missing, moved, or deleted files are safely skipped without failing the rest of the session.
+- **Generational Protection & Workspace Isolation:** Restores session state only when the request matches the current workspace generation, immediately rejecting stale restoration promises during rapid workspace switches. Out-of-boundary documents are filtered out during persistence, completely isolating Workspace A from Workspace B.
+- **Bounded Recent Workspaces History:** Deterministic MRU ordering and path-based deduplication with bounded maximum retention (default 10) and graceful tolerance for temporarily missing drives.
+- **Persistence Boundaries & Debounced Coalescing:** Controlled debouncing (300ms) for high-frequency tab edits and synchronous flushes on workspace switch, workspace close, and application shutdown (`workspacePersistence` service).
+- **Zero Fiction Boundary:** Strictly distinguishes open file references from unsaved document content. Dirty buffers and untitled files are not falsely treated as recoverable without dedicated durable history engines.
+
+### 36. Persistent Document Metadata, Resource State & Document Persistence Foundation (Step 48)
+- **Authoritative Persistence Coordinator (`DocumentPersistenceCoordinator.ts`):** Bridges the Document Engine with persistent storage repositories, strictly maintaining the core boundary: `Persisted Document Metadata != Authoritative Saved File Content`. Filesystem remains authoritative for file contents; Document Engine remains authoritative for runtime state.
+- **Document Metadata Repository (`DocumentMetadataRepository.ts`):** Typed persistence repository managing `qm.document.metadata` and `qm.resource.state` records under partitioned keys (`ws:${workspaceId}:doc:${encodeURIComponent(resourceUri)}` and `ws:${workspaceId}:res:${encodeURIComponent(resourceUri)}`).
+- **Non-Content Document Metadata DTO (`DocumentMetadataDTO`):** Persists durable descriptive attributes including detected and manual language overrides (`languageId`, `isManualLanguage`), manual encodings (`encoding`, `isManualEncoding`), line endings (`lf`, `crlf`, `cr`), read-only status, file stats (`lastKnownSize`, `lastKnownModifiedTime`), last opened/saved timestamps, and cursor positions. Source code, buffer text, and unsaved edits are strictly prohibited from persistence.
+- **Durable Resource State DTO (`ResourceStateDTO`):** Tracks filesystem backing existence (`exists`), canonical basename, and URI scheme (`file`, `browser-fs`, `virtual`) without permitting stale persistence to override filesystem truth.
+- **Save Integrity Invariant:** `lastSavedAt` and updated file statistics are written only after confirmed filesystem write success. If a save operation fails, metadata persistence is suppressed to prevent reporting false success.
+- **Save As & Rename Migration:** Migrates existing metadata from old to new resource URIs, cleans up obsolete records, and creates new resource state to prevent orphaned duplicates.
+- **External Change Synchronization:** Reflects watcher-driven external deletions by marking `exists: false` while retaining historical identity, and updates timestamps on external modifications.
+- **Untitled Buffer Exclusion:** Untitled in-memory buffers (`untitled:*`) are excluded from document and resource persistence.
+- **Optimistic Concurrency & Schema Governance:** Supports `expectedRecordVersion` concurrency checks against stale writes, and versioned schema migrations via `SchemaRegistry` and `MigrationRegistry`.
+
+### 37. Persistent Settings, Preferences & Configuration Storage (Step 49)
+- **Authoritative Configuration Architecture:** Bridges the existing unified Settings System (`SettingsService`, `SettingsRegistry`) with the Phase 05 storage infrastructure (`SettingsRepository`, `StorageService`), strictly enforcing the core distinction: the Settings System remains the sole authority for configuration semantics (definitions, defaults, validation, precedence, runtime resolution), while the Storage Layer provides durable persistence.
+- **Persist Overrides, Not Redundant Defaults:** Storage stores only explicit user overrides (`app:user_settings`) and workspace overrides (`ws:{workspaceId}:settings`). Registry defaults are never redundantly written to disk, and resolved values are never stored.
+- **Scope Precedence & Reset Behavior:** Enforces Workspace Override -> User Override -> Registry Default precedence. Resetting a setting physically deletes the override key from persistence, restoring the lower-precedence tier immediately.
+- **Validation on Load & Validation on Write:** Settings changes are strictly validated against definition schemas before updating in-memory state or writing to storage. Corrupted or invalid stored values are safely discarded on load, falling back to defaults without crashing the application.
+- **Strict Workspace Context Isolation & Generation Safety:** Workspace overrides are partitioned by canonical workspace ID. Generation tracking (`currentWorkspaceGeneration`) prevents race conditions and discards late asynchronous loads during rapid workspace switches.
+- **Sensitive & Secret Settings Protection:** Settings marked `sensitive: true` (or matching API keys, tokens, credentials, and passwords) are rejected from ordinary plaintext configuration persistence, redacted from configuration exports, and masked in log outputs.
+- **Coalesced Debouncing & Safe Shutdown:** Rapid setting interactions (e.g. sliders) are coalesced within a 50ms window. Application shutdown and workspace switches execute `SettingsService.flush()` to guarantee durability before teardown.
+- **Versioned Schema Governance & Migrations:** Governed by `qm.settings.user` and `qm.settings.workspace` schemas in `SchemaRegistry` with explicit, non-destructive migration pathways in `MigrationRegistry`.
+
+## 🛠️ Technology Stack
+- **Centralized Hover Engine (`HoverCoordinator.ts`):** Multi-provider, asynchronous hover information pipeline with cooperative cancellation (`CancellationToken`), document revision checking, workspace generation validation, and deterministic priority aggregation.
+- **Contextual Signature Help (`SignatureHelpCoordinator.ts`):** Parameter hints engine triggered on typing `(` or `,` or `Mod+Shift+Space`, tracking active signature, active parameter bounds clamping, and overload navigation (`ArrowUp`/`ArrowDown`).
+- **Zero-Dependency Content Sanitizer (`ContentSanitizer.ts`):** Strips `<script>`, `<iframe>`, `on*` event handlers, and unsafe URL protocols, rendering rich Markdown documentation and syntax-highlighted code blocks securely.
+- **Accessible Overlays (`HoverWidget.tsx`, `SignatureHelpWidget.tsx`):** Non-intrusive floating widgets positioned via editor coordinates without stealing keyboard focus, complete with provider badges and one-click Go to Definition navigation.
+- **Provider Capability Isolation:** Robust failure shielding ensuring malfunctioning third-party or language providers never crash the editor host or disrupt other providers.
+
+### 32. Code Actions, Quick Fixes & Safe Code Transformation Foundation (Step 44)
+- **Centralized Code Action Coordinator (`CodeActionCoordinator.ts`):** Extends the Language Intelligence provider architecture with asynchronous, multi-provider code action aggregation, cooperative cancellation (`CancellationTokenSource`), and deterministic ordering.
+- **Strict Double Validation Rule:** Every code action is validated at presentation and strictly revalidated at execution against active document revision, model identity, workspace generation, read-only status, external modification state, and non-overlapping range constraints.
+- **Non-Mutating Preview Engine (`CodeActionPreviewModal.tsx`):** Non-destructive preview layer calculating proposed text diffs and affected resources without mutating document text, changing dirty state, touching the physical filesystem, or polluting undo history.
+- **Controlled Transaction Boundary:** All text transformations route exclusively through `EditorCoordinationService.applyTransaction({ source: 'codeAction' })` directly integrating with `EditTransactionManager`, document revisions, dirty state tracking, and native single-step undo/redo.
+- **Keyboard-First Accessible Surface (`CodeActionWidget.tsx`):** Lightbulb/quick-fix floating action menu (`Mod+.` / `Alt+Enter`) with deterministic grouping (Quick Fix, Refactor, Source), preferred action highlighting, full keyboard navigation, and provider failure shielding.
+
+### 33. Core Engine Integration, Cross-Service Hardening & Phase 04 Completion Audit (Step 45)
+- **Centralized Service Orchestration (`ApplicationRuntime.ts`, `defaultServices.ts`):** 30 built-in core services fully integrated into the central application lifecycle with deterministic dependency resolution, degraded-state fallback, graceful shutdown, and disposal cleanup.
+- **Single Authority Guarantee:** Absolute domain boundaries established across Workspace Engine (identity & generation), Document Engine (content, revision, saved baseline & dirty state), Editor Coordination (model mapping & view state), Edit Transaction Manager (mutation authorization), File System & Watch Service (I/O & external change synchronization), Diagnostics Engine (markers & issues), and Navigation Coordinator (canonical locations).
+- **WorkspaceContext Synchronized:** Unified React state with the authoritative Document Engine (`globalDocumentEngine.getByResource()`), eliminating duplicate document state and ensuring UI mirrors single-source-of-truth document baselines.
+- **Code Action & Intelligence Hardening:** Hardened workspace generation validation and document revision checks against open documents across all language coordinators (`CompletionCoordinator`, `HoverCoordinator`, `SignatureHelpCoordinator`, `CodeActionCoordinator`).
+- **Comprehensive E2E Integration Suite (`Phase04Integration.test.ts`):** End-to-end verification covering all 10 mandatory integration scenarios (A–J) including normal editing, completion, diagnostics/quick-fix, external file changes, dirty conflicts, workspace/document race conditions, provider isolation, read-only protections, and shutdown invalidation.
+
+### 34. Data & Storage Architecture Foundation, Persistence Boundaries & Schema Governance (Step 46)
+- **Authoritative Storage Engine (`StorageService.ts`):** Central persistence coordinator providing pluggable storage adapters (`LocalStorageAdapter`, `MemoryStorageAdapter`), per-key serialized concurrency queues, and optimistic concurrency versioning (`recordVersion`).
+- **Schema Governance & Validation (`SchemaRegistry.ts`):** Typed schema definitions with runtime validation on read and write, enforcing structural integrity across user settings, workspace overrides, workspace metadata, and session continuity.
+- **Deterministic Migration Pipeline (`MigrationRegistry.ts`):** Breadth-first search migration planner executing ordered transformations (`v1 -> v2 -> v3`) with step-level validation, atomic commits, rollback protection, and strict rejection of schema downgrades (`StorageMigrationError`).
+- **Corruption Quarantining & Fault Tolerance:** CRC32 checksum verification and automated corrupted record quarantining (`qm_corrupted_*`), preventing crash loops while preserving unparseable data for forensic recovery.
+- **Domain Persistence Repositories:** Typed contracts (`SettingsRepository`, `WorkspaceStateRepository`, `SessionStateRepository`) ensuring UI components and feature modules never touch raw storage keys or adapters directly.
+- **Local-First & Secrets Boundary (`StorageSerializer.ts`):** Strict prohibition of plaintext secrets (passwords, tokens, keys) and live runtime objects (functions, DOM nodes, CodeMirror instances), ensuring zero network egress and full privacy preservation.
 
 ## 🛠️ Technology Stack
 

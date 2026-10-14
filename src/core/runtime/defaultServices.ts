@@ -19,30 +19,62 @@ import { taskService } from '../tasks/TaskService';
 import { sourceControlService } from '../source-control/SourceControlService';
 import { workspaceSearchService } from '../../services/WorkspaceSearchService';
 import { workspaceIndexService } from '../../services/WorkspaceIndexService';
-import { globalWorkspaceEngine } from '../workspace';
+import { globalWorkspaceEngine, globalWorkspacePersistenceCoordinator } from '../workspace';
 import { globalEditTransactionManager } from '../edit';
 import { globalFileSystemWatcherService, globalResourceSynchronizationService } from '../watcher';
 import { globalDocumentHistoryService } from '../history';
 import { globalDiagnosticService, setupTaskProblemsBridge } from '../diagnostics';
 import { globalSymbolService } from '../symbols';
-import { globalDocumentEngine } from '../documents';
+import { globalDocumentEngine, globalDocumentPersistenceCoordinator } from '../documents';
 import { globalEditorCoordinationService } from '../editor';
+import { globalNavigationCoordinator } from '../navigation';
+import {
+  globalLanguageIntelligenceRegistry,
+  globalCompletionCoordinator,
+  globalHoverCoordinator,
+  globalSignatureHelpCoordinator,
+  globalCodeActionCoordinator,
+} from '../language-intelligence';
+import { globalStorageService } from '../storage';
 import { logger } from '../../utils/logger';
 
 /**
  * Registers standard QM Editor application and workspace services into the provided runtime.
  */
 export function registerDefaultServices(runtime: ApplicationRuntime): void {
+  // 0. Storage & Persistence Service (Critical Storage Infrastructure)
+  runtime.registerService({
+    id: 'storage',
+    name: 'Storage & Persistence Service',
+    scope: 'application',
+    criticality: 'critical',
+    dependencies: [],
+    instance: globalStorageService,
+    initialize: async () => {
+      await globalStorageService.initialize();
+      logger.info('Runtime: Storage Service initialized');
+    },
+    dispose: async (service) => {
+      await service.dispose();
+      logger.info('Runtime: Storage Service disposed');
+    },
+  });
+
   // 1. Settings (Critical Infrastructure)
   runtime.registerService({
     id: 'settings',
     name: 'Settings Service',
     scope: 'application',
     criticality: 'critical',
-    dependencies: [],
+    dependencies: ['storage'],
     instance: SettingsService.getInstance(),
-    initialize: () => {
+    initialize: async () => {
+      await SettingsService.getInstance().initialize();
       logger.info('Runtime: Settings Service initialized');
+    },
+    dispose: async () => {
+      await SettingsService.getInstance().flush();
+      logger.info('Runtime: Settings Service flushed');
     },
   });
 
@@ -200,6 +232,43 @@ export function registerDefaultServices(runtime: ApplicationRuntime): void {
     instance: globalWorkspaceEngine,
     initialize: () => {
       logger.info('Runtime: Workspace Context Engine initialized');
+    },
+  });
+
+  // 8c. Workspace Persistence & Session Storage Coordinator
+  runtime.registerService({
+    id: 'workspacePersistence',
+    name: 'Workspace Persistence & Session Coordinator',
+    scope: 'application',
+    criticality: 'critical',
+    dependencies: ['storage', 'workspaceEngine', 'documentEngine', 'editorCoordination'],
+    instance: globalWorkspacePersistenceCoordinator,
+    initialize: async () => {
+      globalWorkspacePersistenceCoordinator.initialize();
+      await globalWorkspacePersistenceCoordinator.migrateLegacyStorage();
+      logger.info('Runtime: Workspace Persistence Coordinator initialized');
+    },
+    dispose: async (service) => {
+      await service.dispose();
+      logger.info('Runtime: Workspace Persistence Coordinator disposed');
+    },
+  });
+
+  // 8d. Document Persistence & Resource State Coordinator (Step 48)
+  runtime.registerService({
+    id: 'documentPersistence',
+    name: 'Document Persistence & Resource State Coordinator',
+    scope: 'application',
+    criticality: 'critical',
+    dependencies: ['storage', 'workspaceEngine', 'documentEngine'],
+    instance: globalDocumentPersistenceCoordinator,
+    initialize: () => {
+      globalDocumentPersistenceCoordinator.initialize();
+      logger.info('Runtime: Document Persistence Coordinator initialized');
+    },
+    dispose: (service) => {
+      service.dispose();
+      logger.info('Runtime: Document Persistence Coordinator disposed');
     },
   });
 
@@ -394,6 +463,112 @@ export function registerDefaultServices(runtime: ApplicationRuntime): void {
     dispose: (service) => {
       service.dispose();
       logger.info('Runtime: Symbol Service disposed');
+    },
+  });
+
+  // 19. Canonical Navigation Coordinator (Step 41)
+  runtime.registerService({
+    id: 'navigation',
+    name: 'Canonical Navigation Coordinator',
+    scope: 'application',
+    criticality: 'critical',
+    dependencies: ['documentEngine', 'editorCoordination'],
+    instance: globalNavigationCoordinator,
+    initialize: () => {
+      logger.info('Runtime: Navigation Coordinator initialized');
+    },
+    dispose: (service) => {
+      service.dispose();
+      logger.info('Runtime: Navigation Coordinator disposed');
+    },
+  });
+
+  // 20. Language Intelligence Registry (Step 42)
+  runtime.registerService({
+    id: 'languageIntelligence',
+    name: 'Language Intelligence Provider Registry',
+    scope: 'application',
+    criticality: 'optional',
+    dependencies: [],
+    instance: globalLanguageIntelligenceRegistry,
+    initialize: () => {
+      logger.info('Runtime: Language Intelligence Registry initialized');
+    },
+    reset: (service) => {
+      service.clear();
+      logger.info('Runtime: Language Intelligence Registry cleared on workspace reset');
+    },
+    dispose: (service) => {
+      service.dispose();
+      logger.info('Runtime: Language Intelligence Registry disposed');
+    },
+  });
+
+  // 21. Completion & Suggestion Coordinator (Step 42)
+  runtime.registerService({
+    id: 'completion',
+    name: 'Completion & Suggestion Coordinator',
+    scope: 'application',
+    criticality: 'optional',
+    dependencies: ['languageIntelligence', 'documentEngine', 'editorCoordination'],
+    instance: globalCompletionCoordinator,
+    initialize: () => {
+      logger.info('Runtime: Completion Coordinator initialized');
+    },
+    dispose: (service) => {
+      service.dispose();
+      logger.info('Runtime: Completion Coordinator disposed');
+    },
+  });
+
+  // 22. Hover Information Coordinator (Step 43)
+  runtime.registerService({
+    id: 'hover',
+    name: 'Hover Information Coordinator',
+    scope: 'application',
+    criticality: 'optional',
+    dependencies: ['languageIntelligence', 'documentEngine'],
+    instance: globalHoverCoordinator,
+    initialize: () => {
+      logger.info('Runtime: Hover Coordinator initialized');
+    },
+    dispose: (service) => {
+      service.dispose();
+      logger.info('Runtime: Hover Coordinator disposed');
+    },
+  });
+
+  // 23. Signature Help & Parameter Hints Coordinator (Step 43)
+  runtime.registerService({
+    id: 'signatureHelp',
+    name: 'Signature Help & Parameter Hints Coordinator',
+    scope: 'application',
+    criticality: 'optional',
+    dependencies: ['languageIntelligence', 'documentEngine'],
+    instance: globalSignatureHelpCoordinator,
+    initialize: () => {
+      logger.info('Runtime: Signature Help Coordinator initialized');
+    },
+    dispose: (service) => {
+      service.dispose();
+      logger.info('Runtime: Signature Help Coordinator disposed');
+    },
+  });
+
+  // 24. Code Action & Transformation Coordinator (Step 44)
+  runtime.registerService({
+    id: 'codeActions',
+    name: 'Code Actions & Quick Fixes Coordinator',
+    scope: 'application',
+    criticality: 'optional',
+    dependencies: ['languageIntelligence', 'documentEngine', 'editorCoordination'],
+    instance: globalCodeActionCoordinator,
+    initialize: () => {
+      logger.info('Runtime: Code Actions Coordinator initialized');
+    },
+    dispose: (service) => {
+      service.dispose();
+      logger.info('Runtime: Code Actions Coordinator disposed');
     },
   });
 }

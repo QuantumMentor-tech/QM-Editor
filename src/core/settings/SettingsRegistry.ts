@@ -44,6 +44,20 @@ export class SettingsRegistry {
     return this.getAll().filter((s) => s.category === category);
   }
 
+  public isSensitive(key: string): boolean {
+    const def = this.get(key);
+    if (def?.sensitive === true) return true;
+    const lower = key.toLowerCase();
+    return (
+      lower.includes('secret') ||
+      lower.includes('token') ||
+      lower.includes('password') ||
+      lower.includes('apikey') ||
+      lower.includes('api_key') ||
+      lower.includes('credential')
+    );
+  }
+
   public search(query: string): SettingDefinition[] {
     const q = query.trim().toLowerCase();
     if (!q) return this.getAll();
@@ -297,6 +311,108 @@ export class SettingsRegistry {
       category: 'Editor',
       type: 'boolean',
       defaultValue: false,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'editor.suggest.enabled',
+      title: 'Enable Suggestions',
+      description: 'Controls whether automatic and on-demand code completion suggestions are enabled.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'editor.suggest.triggerCharacters',
+      title: 'Accept Trigger Characters',
+      description: 'Controls whether typing trigger characters automatically invokes completion.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'editor.suggest.wordBasedSuggestions',
+      title: 'Word Based Suggestions',
+      description: 'Controls whether buffer words are provided as fallback completion suggestions.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'editor.suggest.showDetails',
+      title: 'Show Suggestion Details',
+      description: 'Controls whether documentation and signatures are displayed in the suggestion widget.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'editor.hover.enabled',
+      title: 'Enable Editor Hover',
+      description: 'Controls whether hovering over code symbols displays contextual documentation and types.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'editor.hover.delay',
+      title: 'Hover Delay',
+      description: 'Controls the delay in milliseconds before hover documentation is requested.',
+      category: 'Editor',
+      type: 'number',
+      defaultValue: 300,
+      scope: 'user',
+      min: 100,
+      max: 2000,
+    });
+
+    this.register({
+      key: 'editor.parameterHints.enabled',
+      title: 'Enable Parameter Hints',
+      description: 'Controls whether parameter hints and signature help are shown while typing function calls.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'editor.parameterHints.cycle',
+      title: 'Cycle Parameter Hints',
+      description: 'Controls whether parameter hints cycle through overloads when reaching the end.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'editor.codeActions.enabled',
+      title: 'Enable Code Actions & Quick Fixes',
+      description: 'Controls whether quick fixes and code actions are available in the editor.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'editor.codeActions.confirmMultiFile',
+      title: 'Confirm Multi-File Code Actions',
+      description: 'Controls whether a preview modal is displayed before applying code actions affecting multiple files.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
       scope: 'user',
     });
 

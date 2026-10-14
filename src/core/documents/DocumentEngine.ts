@@ -16,6 +16,7 @@ import {
   SaveAsOptions,
   DocumentCapabilities,
   DocumentMetadata,
+  ReadOnlyReason,
 } from './DocumentTypes';
 import {
   DocumentNotFoundError,
@@ -1142,7 +1143,100 @@ export class DocumentEngine {
   }
 
   // ---------------------------------------------------------------------------
-  // 8. Legacy DocumentModel Bridge (for UI/Adapter Compatibility)
+  // 8. Document Preferences & Metadata Setters
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Updates the language identifier of an open document.
+   */
+  public async setDocumentLanguage(
+    documentId: string,
+    languageId: string,
+    isManual: boolean = true
+  ): Promise<void> {
+    this.assertNotDisposed('setDocumentLanguage');
+    const doc = this.registry.get(documentId);
+    if (!doc) throw new DocumentNotFoundError(documentId);
+
+    doc.languageId = languageId;
+    doc.metadata = {
+      ...doc.metadata,
+      languageId,
+    };
+
+    await this.emit('document.languageChanged', {
+      documentId: doc.id,
+      resourceUri: doc.resourceUri,
+      workspaceId: doc.workspaceId,
+      languageId,
+      isManual,
+    });
+  }
+
+  /**
+   * Updates the encoding metadata of an open document.
+   */
+  public async setDocumentEncoding(
+    documentId: string,
+    encoding: string,
+    isManual: boolean = true
+  ): Promise<void> {
+    this.assertNotDisposed('setDocumentEncoding');
+    const doc = this.registry.get(documentId);
+    if (!doc) throw new DocumentNotFoundError(documentId);
+
+    doc.metadata = {
+      ...doc.metadata,
+      encoding,
+    };
+
+    await this.emit('document.encodingChanged', {
+      documentId: doc.id,
+      resourceUri: doc.resourceUri,
+      workspaceId: doc.workspaceId,
+      encoding,
+      isManual,
+    });
+  }
+
+  /**
+   * Sets or toggles read-only status on an open document.
+   */
+  public async setDocumentReadOnly(
+    documentId: string,
+    isReadOnly: boolean,
+    reason?: ReadOnlyReason
+  ): Promise<void> {
+    this.assertNotDisposed('setDocumentReadOnly');
+    const doc = this.registry.get(documentId);
+    if (!doc) throw new DocumentNotFoundError(documentId);
+
+    doc.metadata = {
+      ...doc.metadata,
+      isReadOnly,
+      readOnlyReason: reason,
+    };
+    doc.capabilities = {
+      ...doc.capabilities,
+      canWrite: !isReadOnly,
+      writeBlockedReason: isReadOnly
+        ? reason
+          ? `Document is read-only (${reason}).`
+          : 'Document is read-only.'
+        : undefined,
+    };
+
+    await this.emit('document.readOnlyChanged', {
+      documentId: doc.id,
+      resourceUri: doc.resourceUri,
+      workspaceId: doc.workspaceId,
+      isReadOnly,
+      reason,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // 9. Legacy DocumentModel Bridge (for UI/Adapter Compatibility)
   // ---------------------------------------------------------------------------
 
   public toDocumentModel(record: DocumentRecord): DocumentModel {
@@ -1187,6 +1281,13 @@ export class DocumentEngine {
     this.activeSaveLocks.clear();
 
     logger.info('DocumentEngine: disposed');
+  }
+
+  public reset(): void {
+    this.isDisposed = false;
+    this.registry.clear();
+    this.listeners.clear();
+    this.activeSaveLocks.clear();
   }
 
   private assertNotDisposed(operation: string): void {

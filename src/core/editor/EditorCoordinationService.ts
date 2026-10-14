@@ -219,6 +219,21 @@ export class EditorCoordinationService {
     this.viewStateManager.clearViewState(documentId);
   }
 
+  public getCursorPosition(documentId?: string): { line: number; column: number } | undefined {
+    const targetId = documentId || globalDocumentEngine.getActiveDocumentId();
+    if (!targetId) return undefined;
+    return this.viewStateManager.getViewState(targetId)?.cursorPosition;
+  }
+
+  public setCursorPosition(pos: { line: number; column: number }, documentId?: string): void {
+    const targetId = documentId || globalDocumentEngine.getActiveDocumentId();
+    if (!targetId) return;
+    this.viewStateManager.saveViewState(targetId, {
+      cursorPosition: pos,
+      selections: [],
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // 4. Programmatic Edit Transactions
   // ---------------------------------------------------------------------------
@@ -639,6 +654,13 @@ export class EditorCoordinationService {
     this.listeners.clear();
 
     logger.info('EditorCoordinationService: disposed');
+  }
+
+  public reset(): void {
+    this.isDisposed = false;
+    this.instances.clear();
+    this.viewStateManager.clearAll();
+    this.listeners.clear();
   }
 
   private assertNotDisposed(method: string): void {

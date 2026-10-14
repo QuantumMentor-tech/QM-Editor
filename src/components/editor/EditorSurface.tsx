@@ -1,15 +1,36 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { DocumentModel } from '../../types';
 import { CodeMirrorEditorAdapter } from './EditorAdapter';
 import { useShellState } from '../../state/ShellContext';
 import { useSearch } from '../../state/SearchContext';
 import { SearchPanel } from '../search/SearchPanel';
-
+import { SuggestWidget } from './SuggestWidget';
+import { HoverWidget } from './HoverWidget';
+import { SignatureHelpWidget } from './SignatureHelpWidget';
+import { CodeActionWidget } from './CodeActionWidget';
+import { CodeActionPreviewModal } from './CodeActionPreviewModal';
 import { useNavigation } from '../../state/NavigationContext';
 import { useContextMenu } from '../../state/ContextMenuContext';
 import { globalFocusManager } from '../../core/accessibility/FocusManager';
 import { globalDiagnosticService, normalizeDiagnosticUri } from '../../core/diagnostics';
 import { globalEditorCoordinationService } from '../../core/editor';
+import { globalCompletionCoordinator } from '../../core/language-intelligence/CompletionCoordinator';
+import { globalHoverCoordinator } from '../../core/language-intelligence/HoverCoordinator';
+import { globalSignatureHelpCoordinator } from '../../core/language-intelligence/SignatureHelpCoordinator';
+import { globalCodeActionCoordinator } from '../../core/language-intelligence/CodeActionCoordinator';
+import { globalWorkspaceEngine } from '../../core/workspace';
+import {
+  CompletionItem,
+  CompletionTriggerKind,
+  HoverResult,
+  SignatureHelpResult,
+} from '../../core/language-intelligence/LanguageIntelligenceTypes';
+import {
+  CodeAction,
+  CodeActionRequest,
+  CodeActionPreview,
+  CodeActionTriggerKind,
+} from '../../core/language-intelligence/CodeActionTypes';
 
 export interface EditorSurfaceProps {
   document: DocumentModel;
@@ -24,6 +45,31 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
   const { setCurrentPos, pushLocation } = useNavigation();
   const { openContextMenu } = useContextMenu();
 
+  // Completion Suggestion State
+  const [isSuggestOpen, setIsSuggestOpen] = useState<boolean>(false);
+  const [suggestItems, setSuggestItems] = useState<CompletionItem[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const [suggestPos, setSuggestPos] = useState<{ x: number; y: number }>({ x: 100, y: 100 });
+
+  // Hover Information State (Step 43)
+  const [isHoverOpen, setIsHoverOpen] = useState<boolean>(false);
+  const [hoverResult, setHoverResult] = useState<HoverResult | null>(null);
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number }>({ x: 100, y: 100 });
+  const hoverTimerRef = useRef<any>(null);
+
+  // Signature Help State (Step 43)
+  const [isSigOpen, setIsSigOpen] = useState<boolean>(false);
+  const [sigResult, setSigResult] = useState<SignatureHelpResult | null>(null);
+  const [sigPos, setSigPos] = useState<{ x: number; y: number }>({ x: 100, y: 100 });
+
+  // Code Actions & Quick Fixes State (Step 44)
+  const [isCodeActionOpen, setIsCodeActionOpen] = useState<boolean>(false);
+  const [codeActions, setCodeActions] = useState<CodeAction[]>([]);
+  const [selectedActionIndex, setSelectedActionIndex] = useState<number>(0);
+  const [codeActionPos, setCodeActionPos] = useState<{ x: number; y: number }>({ x: 100, y: 100 });
+  const [previewData, setPreviewData] = useState<CodeActionPreview | null>(null);
+  const [pendingActionToApply, setPendingActionToApply] = useState<CodeAction | null>(null);
+
   const docIdRef = useRef<string>(document.id);
   docIdRef.current = document.id;
 
@@ -35,6 +81,59 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
 
   const onContentChangeRef = useRef(onContentChange);
   onContentChangeRef.current = onContentChange;
+
+  const triggerCompletion = useCallback(
+    async (triggerKind: CompletionTriggerKind = 'invoked', triggerChar?: string) => {
+      if (!adapterRef.current || document.fileResource?.readOnly) {
+        setIsSuggestOpen(false);
+        return;
+      }
+
+      const cursor = adapterRef.current.getCursorPosition();
+      const res = await globalCompletionCoordinator.requestCompletions(document.id, cursor, {
+        triggerKind,
+        triggerCharacter: triggerChar,
+      });
+
+      if (res.items.length > 0) {
+        // Compute position from active cursor element if available
+        if (containerRef.current) {
+          const cursorEl = containerRef.current.querySelector<HTMLElement>('.cm-cursor');
+          if (cursorEl) {
+            const cRect = cursorEl.getBoundingClientRect();
+            setSuggestPos({ x: cRect.left, y: cRect.bottom + 4 });
+          } else {
+            const rect = containerRef.current.getBoundingClientRect();
+            const fontSize = shellState.editorSettings.fontSize || 14;
+            setSuggestPos({
+              x: Math.min(rect.right - 350, rect.left + 45 + (cursor.column - 1) * (fontSize * 0.6)),
+              y: Math.min(rect.bottom - 200, rect.top + (cursor.line - 1) * (fontSize * 1.5) + 24),
+            });
+          }
+        }
+
+        setSuggestItems(res.items);
+        setSelectedIndex(0);
+        setIsSuggestOpen(true);
+      } else {
+        setIsSuggestOpen(false);
+      }
+    },
+    [document.id, document.fileResource?.readOnly, shellState.editorSettings.fontSize]
+  );
+
+  const handleSelectCompletion = useCallback(
+    async (item: CompletionItem) => {
+      setIsSuggestOpen(false);
+      await globalCompletionCoordinator.applyCompletion(
+        document.id,
+        item,
+        document.contentRevision
+      );
+      adapterRef.current?.focus();
+    },
+    [document.id, document.contentRevision]
+  );
 
   // Mount editor adapter instance
   useEffect(() => {
@@ -52,8 +151,48 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
         if (onContentChangeRef.current) {
           onContentChangeRef.current(newContent);
         }
+
+        // Close suggestions if open and user types space or newline
+        if (isSuggestOpen) {
+          const cursor = adapter.getCursorPosition();
+          const lineText = newContent.split('\n')[cursor.line - 1] || '';
+          const lastChar = lineText[cursor.column - 2];
+          if (!lastChar || lastChar === ' ' || lastChar === '\t') {
+            setIsSuggestOpen(false);
+          }
+        }
+
+        // Close hover on content edit
+        setIsHoverOpen(false);
+
+        // Check for signature help trigger characters '(' or ',' (Step 43)
+        const cursor = adapter.getCursorPosition();
+        const lineText = newContent.split('\n')[cursor.line - 1] || '';
+        const lastChar = lineText[cursor.column - 2];
+        if (lastChar === '(' || lastChar === ',') {
+          globalSignatureHelpCoordinator
+            .requestSignatureHelp(docIdRef.current, cursor, {
+              triggerKind: 'triggerCharacter',
+              triggerCharacter: lastChar,
+            })
+            .then((res) => {
+              if (res && res.signatures.length > 0) {
+                const coords = adapter.coordsAtPos();
+                if (coords) {
+                  setSigPos({ x: coords.left, y: coords.top });
+                }
+                setSigResult(res);
+                setIsSigOpen(true);
+              } else {
+                setIsSigOpen(false);
+              }
+            });
+        } else if (lastChar === ')' || lastChar === ';') {
+          setIsSigOpen(false);
+        }
       },
       onCursorActivity: (pos) => {
+        setIsHoverOpen(false);
         setCurrentPos(pos);
         pushLocation({
           documentId: docIdRef.current,
@@ -75,7 +214,265 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
       adapterRef.current = null;
     };
     // Re-mount only if active document ID changes
-  }, [document.id, pushLocation, setCurrentPos]);
+  }, [document.id, pushLocation, setCurrentPos, isSuggestOpen]);
+
+  // Mouse hover event listener on container (Step 43)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+      }
+
+      const clientX = e.clientX;
+      const clientY = e.clientY;
+
+      hoverTimerRef.current = setTimeout(async () => {
+        if (!adapterRef.current) return;
+        const pos = adapterRef.current.posAtCoords({ x: clientX, y: clientY });
+        if (!pos) {
+          setIsHoverOpen(false);
+          return;
+        }
+
+        const res = await globalHoverCoordinator.requestHover(docIdRef.current, pos, {
+          triggerKind: 'mouse',
+        });
+
+        if (res && res.contents.length > 0) {
+          setHoverPos({ x: clientX, y: clientY + 16 });
+          setHoverResult(res);
+          setIsHoverOpen(true);
+        } else {
+          setIsHoverOpen(false);
+        }
+      }, 300);
+    };
+
+    const handleMouseLeave = () => {
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+      }
+      setIsHoverOpen(false);
+    };
+
+    container.addEventListener('mousemove', handleMouseMove);
+    container.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      container.removeEventListener('mousemove', handleMouseMove);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Intercept keyboard controls when SuggestWidget or SignatureHelpWidget is active
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isSuggestOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsSuggestOpen(false);
+        }
+        if (isHoverOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsHoverOpen(false);
+        }
+        if (isSigOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsSigOpen(false);
+        }
+        if (isCodeActionOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsCodeActionOpen(false);
+        }
+        if (previewData) {
+          e.preventDefault();
+          e.stopPropagation();
+          setPreviewData(null);
+          setPendingActionToApply(null);
+        }
+        return;
+      }
+
+      if (!isSuggestOpen || suggestItems.length === 0) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedIndex((prev) => (prev + 1) % suggestItems.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedIndex((prev) => (prev - 1 + suggestItems.length) % suggestItems.length);
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        e.stopPropagation();
+        const selected = suggestItems[selectedIndex] || suggestItems[0];
+        if (selected) {
+          handleSelectCompletion(selected);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isSuggestOpen, isHoverOpen, isSigOpen, suggestItems, selectedIndex, handleSelectCompletion]);
+
+  // Listen for manual trigger suggestion command event
+  useEffect(() => {
+    const handleTriggerEvent = () => {
+      triggerCompletion('invoked');
+    };
+
+    window.addEventListener('qm:editor:triggersuggest', handleTriggerEvent);
+    return () => {
+      window.removeEventListener('qm:editor:triggersuggest', handleTriggerEvent);
+    };
+  }, [triggerCompletion]);
+
+  // Listen for manual show hover command event (Step 43)
+  useEffect(() => {
+    const handleShowHover = async () => {
+      if (!adapterRef.current) return;
+      const cursor = adapterRef.current.getCursorPosition();
+      const coords = adapterRef.current.coordsAtPos();
+
+      const res = await globalHoverCoordinator.requestHover(docIdRef.current, cursor, {
+        triggerKind: 'manual',
+      });
+
+      if (res && res.contents.length > 0) {
+        setHoverPos(coords ? { x: coords.left, y: coords.bottom + 8 } : { x: 200, y: 200 });
+        setHoverResult(res);
+        setIsHoverOpen(true);
+      }
+    };
+
+    window.addEventListener('qm:editor:showhover', handleShowHover);
+    return () => {
+      window.removeEventListener('qm:editor:showhover', handleShowHover);
+    };
+  }, []);
+
+  // Listen for manual trigger parameter hints command event (Step 43)
+  useEffect(() => {
+    const handleTriggerSig = async () => {
+      if (!adapterRef.current) return;
+      const cursor = adapterRef.current.getCursorPosition();
+      const coords = adapterRef.current.coordsAtPos();
+
+      const res = await globalSignatureHelpCoordinator.requestSignatureHelp(docIdRef.current, cursor, {
+        triggerKind: 'invoked',
+      });
+
+      if (res && res.signatures.length > 0) {
+        setSigPos(coords ? { x: coords.left, y: coords.top } : { x: 200, y: 200 });
+        setSigResult(res);
+        setIsSigOpen(true);
+      }
+    };
+
+    window.addEventListener('qm:editor:triggerparameterhints', handleTriggerSig);
+    return () => {
+      window.removeEventListener('qm:editor:triggerparameterhints', handleTriggerSig);
+    };
+  }, []);
+
+  // Code Action Execution & Preview Handlers (Step 44)
+  const triggerCodeActions = useCallback(
+    async (triggerKind: CodeActionTriggerKind = 'invoked') => {
+      if (!adapterRef.current) return;
+      const cursor = adapterRef.current.getCursorPosition();
+      const coords = adapterRef.current.coordsAtPos();
+
+      const docUri = docFilePathRef.current || `untitled:${docIdRef.current}`;
+      const allDiagnostics = globalDiagnosticService.getDiagnostics(docUri);
+      const overlapping = allDiagnostics.filter(
+        (d: any) => !d.range || (d.range.startLine <= cursor.line && d.range.endLine >= cursor.line)
+      );
+
+      const request: CodeActionRequest = {
+        requestId: `ca-${Date.now()}`,
+        workspaceId: globalWorkspaceEngine.getWorkspaceId() || 'default',
+        workspaceGeneration: globalWorkspaceEngine.getGeneration(),
+        documentId: docIdRef.current,
+        resourceUri: docUri,
+        editorModelId: docIdRef.current,
+        documentRevision: document.contentRevision,
+        range: {
+          startLine: cursor.line,
+          startColumn: cursor.column,
+          endLine: cursor.line,
+          endColumn: cursor.column,
+        },
+        diagnostics: overlapping,
+        languageId: document.language || 'plaintext',
+        triggerKind,
+      };
+
+      const actions = await globalCodeActionCoordinator.provideCodeActions(request);
+      if (actions.length > 0) {
+        setCodeActionPos(coords ? { x: coords.left, y: coords.bottom + 8 } : { x: 200, y: 200 });
+        setCodeActions(actions);
+        setSelectedActionIndex(0);
+        setIsCodeActionOpen(true);
+      }
+    },
+    [document.contentRevision, document.language]
+  );
+
+  const handleApplyCodeAction = useCallback(
+    async (action: CodeAction) => {
+      setIsCodeActionOpen(false);
+      await globalCodeActionCoordinator.applyCodeAction(action, {
+        documentId: docIdRef.current,
+        expectedRevision: document.contentRevision,
+      });
+    },
+    [document.contentRevision]
+  );
+
+  const handlePreviewCodeAction = useCallback(async (action: CodeAction) => {
+    setIsCodeActionOpen(false);
+    const preview = await globalCodeActionCoordinator.previewCodeAction(action);
+    setPreviewData(preview);
+    setPendingActionToApply(action);
+  }, []);
+
+  const handleConfirmPreview = useCallback(async () => {
+    if (pendingActionToApply) {
+      const action = pendingActionToApply;
+      setPreviewData(null);
+      setPendingActionToApply(null);
+      await globalCodeActionCoordinator.applyCodeAction(action, {
+        documentId: docIdRef.current,
+        expectedRevision: document.contentRevision,
+      });
+    }
+  }, [pendingActionToApply, document.contentRevision]);
+
+  // Listen for manual trigger code action / quick fix command event (Step 44)
+  useEffect(() => {
+    const handleQuickFixEvent = () => {
+      triggerCodeActions('invoked');
+    };
+
+    window.addEventListener('qm:editor:quickfix', handleQuickFixEvent);
+    return () => {
+      window.removeEventListener('qm:editor:quickfix', handleQuickFixEvent);
+    };
+  }, [triggerCodeActions]);
 
   // Register editor region with global focus manager (Rule 41)
   useEffect(() => {
@@ -159,7 +556,7 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
       window.removeEventListener('qm:editor:selectall', handleSelectAll);
       window.removeEventListener('qm:editor:copy', handleCopy);
     };
-  }, []);
+  }, [document.fileResource?.readOnly]);
 
   // Highlight search matches in editor view
   useEffect(() => {
@@ -229,6 +626,60 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
     >
       {/* Search & Replace Panel Overlay */}
       <SearchPanel />
+
+      {/* Suggestion Completion Widget */}
+      {isSuggestOpen && suggestItems.length > 0 && (
+        <SuggestWidget
+          items={suggestItems}
+          selectedIndex={selectedIndex}
+          position={suggestPos}
+          onSelect={handleSelectCompletion}
+          onClose={() => setIsSuggestOpen(false)}
+        />
+      )}
+
+      {/* Contextual Hover Widget (Step 43) */}
+      {isHoverOpen && hoverResult && (
+        <HoverWidget
+          result={hoverResult}
+          position={hoverPos}
+          onClose={() => setIsHoverOpen(false)}
+        />
+      )}
+
+      {/* Signature Help Parameter Hints Widget (Step 43) */}
+      {isSigOpen && sigResult && (
+        <SignatureHelpWidget
+          result={sigResult}
+          position={sigPos}
+          onClose={() => setIsSigOpen(false)}
+        />
+      )}
+
+      {/* Code Action & Quick Fix Widget (Step 44) */}
+      {isCodeActionOpen && codeActions.length > 0 && (
+        <CodeActionWidget
+          actions={codeActions}
+          selectedIndex={selectedActionIndex}
+          position={codeActionPos}
+          onSelectIndex={setSelectedActionIndex}
+          onApply={handleApplyCodeAction}
+          onPreview={handlePreviewCodeAction}
+          onClose={() => setIsCodeActionOpen(false)}
+        />
+      )}
+
+      {/* Code Action Preview Modal (Step 44) */}
+      {previewData && (
+        <CodeActionPreviewModal
+          preview={previewData}
+          onApply={handleConfirmPreview}
+          onCancel={() => {
+            setPreviewData(null);
+            setPendingActionToApply(null);
+          }}
+        />
+      )}
 
       {/* CodeMirror Surface Container */}
       <div

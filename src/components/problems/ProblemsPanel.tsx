@@ -5,18 +5,17 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useTasks } from '../../state/TaskContext';
-import { useWorkspace } from '../../state/WorkspaceContext';
 import { useContextMenu } from '../../state/ContextMenuContext';
 import { AlertCircle, AlertTriangle, Info, Trash2, Filter, FileText, CheckCircle2 } from 'lucide-react';
 import { Problem, ProblemSeverity } from '../../core/tasks/TaskTypes';
 import { globalFocusManager } from '../../core/accessibility/FocusManager';
 import { EmptyState } from '../common/EmptyState';
 import { globalDiagnosticService, diagnosticToProblem, Diagnostic } from '../../core/diagnostics';
+import { globalNavigationCoordinator } from '../../core/navigation';
 
 export const ProblemsPanel: React.FC = () => {
   const { allProblems, clearProblems } = useTasks();
   const { openContextMenu } = useContextMenu();
-  const workspaceContext = useWorkspace();
   const [filterSeverity, setFilterSeverity] = useState<string>('all');
   const [filterSource, setFilterSource] = useState<string>('all');
   const [searchFilter, setSearchFilter] = useState<string>('');
@@ -95,28 +94,21 @@ export const ProblemsPanel: React.FC = () => {
 
     if (!target.valid) return;
 
-    // 2. Open or activate the file
-    if (workspaceContext.openFilePath) {
-      await workspaceContext.openFilePath(target.uri);
-    } else {
-      const matching = workspaceContext.openDocs.find(
-        (d) => d.filePath === target.uri || d.title === target.uri
-      );
-      if (matching) {
-        workspaceContext.activateDoc(matching.id);
-      }
-    }
-
-    // 3. Dispatch jump-to-line event if not resource-level only
-    if (!target.isResourceLevel) {
-      setTimeout(() => {
-        window.dispatchEvent(
-          new CustomEvent('qm:editor:gotoline', {
-            detail: { line: target.line, column: target.column },
-          })
-        );
-      }, 50);
-    }
+    // 2. Route through centralized NavigationCoordinator
+    await globalNavigationCoordinator.navigateToLocation(
+      {
+        uri: target.uri,
+        range: target.isResourceLevel
+          ? undefined
+          : {
+              startLine: target.line,
+              startColumn: target.column,
+              endLine: target.line,
+              endColumn: target.column,
+            },
+      },
+      { origin: 'problems' }
+    );
   };
 
   const containerRef = useRef<HTMLDivElement>(null);

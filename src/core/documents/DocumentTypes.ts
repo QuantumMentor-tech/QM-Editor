@@ -246,6 +246,16 @@ export interface DocumentReadOnlyChangedEventPayload extends DocumentEventPayloa
   reason?: ReadOnlyReason;
 }
 
+export interface DocumentLanguageChangedEventPayload extends DocumentEventPayload {
+  languageId: string;
+  isManual: boolean;
+}
+
+export interface DocumentEncodingChangedEventPayload extends DocumentEventPayload {
+  encoding: string;
+  isManual: boolean;
+}
+
 export interface DocumentClosingEventPayload extends DocumentEventPayload {
   isDirty: boolean;
 }
@@ -267,6 +277,8 @@ export interface DocumentEventMap {
   'document.conflictDetected': DocumentConflictDetectedEventPayload;
   'document.resourceChanged': DocumentResourceChangedEventPayload;
   'document.readOnlyChanged': DocumentReadOnlyChangedEventPayload;
+  'document.languageChanged': DocumentLanguageChangedEventPayload;
+  'document.encodingChanged': DocumentEncodingChangedEventPayload;
   'document.closing': DocumentClosingEventPayload;
   'document.closed': DocumentClosedEventPayload;
 }

@@ -298,3 +298,153 @@ Phase 04 Step 40 establishes the permanent Diagnostics, Problems, Markers, and I
 9. Resource-Level & Optional-Range Integrity: Configuration errors, missing dependencies, and folder-level problems that have no source range must keep `range` optional (`undefined`). Coordinate values (lines/columns) must NEVER be fabricated for range-less issues.
 10. Privacy & Sanitized Logging: Diagnostic messages, rule codes, and related information must remain strictly local. Source code snippets, file contents, passwords, and sensitive environment variables must NEVER be logged, serialized, or transmitted to telemetry.
 11. Document Close vs Delete Boundary: Diagnostics represent resource and project state. Closing an editor tab removes visual editor decorations with the model, but valid provider diagnostics MUST NOT be deleted merely because a tab is closed. Only explicit resource deletion (`handleResourceDeleted`) cleans up resource diagnostics.
+
+## RULE 55 — CODE NAVIGATION, SYMBOLS, LOCATIONS & OUTLINE ENGINE DISCIPLINE
+Phase 04 Step 41 establishes the permanent Code Navigation, Symbol, Location, and Outline Engine for QM Editor. All structured navigation, symbol producers, outline consumers, and location models must adhere to this unified foundation:
+1. Canonical Location Authority: All structured navigation targets and code references must use the canonical `Location` and 1-based `Range` models (`src/core/navigation/LocationTypes.ts`). Inventing feature-specific location, range, or coordinate schemes is strictly prohibited.
+2. Single Navigation Coordinator: `NavigationCoordinator` (`globalNavigationCoordinator`) is the sole application-level gateway for navigating to code locations. UI components, commands, search panels, outline trees, and diagnostics must NEVER invoke ad-hoc document opening, editor model lookups, or uncoordinated editor jumps.
+3. Centralized Document Resolution: Navigation to unopened resources must pass through the registered opener or `DocumentEngine`. Direct manual filesystem reading or instantiating duplicate document models during navigation is strictly prohibited. If a document is already open, the existing instance MUST be activated.
+4. Safe Range Clamping Invariant: When navigating to a range, coordinates must be validated and safely clamped against actual document line counts and line text lengths via `clampRangeToDocument`. Stale or out-of-bounds navigation targets must never trigger exceptions or crash the editor.
+5. Monotonic Sequence & Race Protection: All asynchronous navigation operations must validate their monotonic sequence ID. If a newer navigation request begins while an older request is resolving, the older request MUST be discarded immediately with error code `'STALE_REQUEST'`.
+6. Workspace Generation Boundary: Navigation operations and symbol queries are strictly bound to active workspace identity. If the active workspace switches while an operation is pending, the operation MUST be aborted with `'WORKSPACE_MISMATCH'` to prevent cross-workspace state contamination.
+7. Absolute Symbol Provider Isolation: Each `SymbolProvider` owns strictly its own symbol results. A provider must never overwrite, mutate, or erase another provider's symbols unless explicitly configured as authoritative for that document scope.
+8. Document Revision Awareness for Symbols: Symbols derived from document content MUST be associated with `document.contentRevision`. If the document's content revision changes before an asynchronous symbol result completes, the stale result MUST be rejected immediately.
+9. Outline UI as Pure Consumer: The Outline Panel is a presentation consumer and MUST NOT become a persistent symbol data store. It derives its hierarchy from `SymbolEngine`, navigates via `NavigationCoordinator`, and maintains distinct loading, ready, empty, and error states.
+10. History Integration & Deduplication: Programmatic jumps to meaningful code locations must integrate with `NavigationService`. Consecutive navigation within the line-jitter tolerance threshold (< 5 lines in the same document) must update the current pointer rather than polluting the history back-stack.
+11. Shared Navigation Boundary for Diagnostics, Search, and Quick Open: Diagnostics, Problems, Search Results, Quick Open, and Go to Symbol must share the same canonical location and navigation coordination pipeline.
+12. Modular Intelligence Boundary: Future language services, LSP implementations, and AI/SLM code intelligence engines must integrate as registered `SymbolProvider` instances rather than creating uncoordinated side-channels or bypassing the core architecture.
+
+## RULE 56 — LANGUAGE INTELLIGENCE & COMPLETION PROVIDER ARCHITECTURE DISCIPLINE
+Phase 04 Step 42 establishes the permanent Language Intelligence Provider Architecture and Completion Framework for QM Editor. All language-aware features, suggestion providers, completion engines, and future LSP or AI/SLM integrations must adhere to this unified foundation:
+1. Provider Architecture Authority: Language intelligence must use the central `LanguageIntelligenceRegistry` (`globalLanguageIntelligenceRegistry`). Subsystems, plugins, or extensions must NEVER create competing provider registries.
+2. Direct Mutation Invariant: Completion providers generate suggestion metadata; they must NEVER mutate editor models, document records, or view states directly.
+3. Edit Transaction System Authority: Accepted completions that mutate document content must flow through `EditorCoordinationService.applyTransaction({ source: 'completion' })`. Bypassing the Edit Transaction System or Document Engine is strictly prohibited.
+4. Revision & Stale Protection: Completion requests and results are strictly revision-bound. If the user continues typing or the document revision advances while a provider request is pending, the stale result MUST be discarded immediately.
+5. Workspace Generation Protection: Completion queries are bound to the active workspace generation. If the active workspace switches while a completion request is resolving, results MUST be discarded without polluting the new workspace.
+6. Absolute Provider Isolation: Each provider operates in an isolated failure shield. If one provider throws an unhandled exception or hangs, other providers must continue functioning without crashing the editor host or completion widget.
+7. Cooperative Cancellation: Every completion request must pass a `CancellationToken`. Slower providers must check `token.isCancellationRequested` periodically. When a new keystroke occurs, any prior request must be aborted immediately.
+8. Read-Only Enforcement: Completion acceptance must strictly respect document capabilities. Applying a completion to a read-only document must be safely rejected without mutating document content or throwing unhandled errors.
+9. Native Undo/Redo Integration: Accepted completions must integrate directly into the native editor history stack. No completion-specific undo stack may be created. Undoing a completion must cleanly revert the text edit in a single step.
+10. Modular Intelligence Boundary: Future Language Server Protocol (LSP) clients, compiler-backed providers, and AI/SLM assistants must plug in as registered `LanguageIntelligenceProvider` instances without altering the core editor, DocumentEngine, or UI architecture.
+11. Security & Content Sanitization: Completion documentation must be rendered safely (plain text or sanitized markdown). Executable scripts, arbitrary HTML, and unapproved command execution are strictly prohibited.
+12. Privacy & Zero-Content Telemetry: Source code, cursor context, completion requests, and suggestion lists must NEVER be logged, serialized to telemetry, or transmitted across unauthorized networks.
+
+## RULE 57 — HOVER, SIGNATURE HELP & CONTEXTUAL LANGUAGE INTELLIGENCE DISCIPLINE
+Phase 04 Step 43 establishes the permanent Hover Information, Signature Help, and Contextual Language Intelligence Engine for QM Editor. All symbol documentation, parameter hints, type info, and contextual intelligence providers must adhere to this unified foundation:
+1. Centralized Language Intelligence Architecture: Hover and Signature Help must strictly use the centralized `LanguageIntelligenceRegistry` (`globalLanguageIntelligenceRegistry`). Subsystems, extensions, or language packs must NEVER create competing hover or signature registries.
+2. Direct Mutation Invariant: Hover and Signature Help providers return read-only contextual intelligence; they MUST NEVER mutate editor models, document records, or view states directly, nor create document revisions.
+3. Informational Read-Only Status: Informational language intelligence remains fully available in read-only and untitled documents without requiring saved physical files on disk.
+4. Revision & Stale Protection: All hover and signature requests are strictly revision-bound. If the user edits the document while an asynchronous provider operation is in-flight, the stale result MUST be discarded immediately upon resolution.
+5. Monotonic Generation Guards: Signature Help and Hover requests track monotonic generation counters (`generation`). Slower delayed responses from prior queries MUST NEVER overwrite newer active results.
+6. Workspace Generation Boundary: Hover and signature requests are strictly bound to the active workspace generation. Switching workspaces while an operation is pending immediately invalidates the request and prevents cross-workspace data leakage.
+7. Absolute Provider Isolation: Each provider executes within an isolated failure boundary. An exception or crash in one provider MUST NEVER crash the editor, freeze the UI, or prevent other providers from returning valid documentation.
+8. Cooperative Cancellation: All contextual requests receive a `CancellationToken`. Typing, cursor motion, document closing, or editor blur must immediately abort pending requests.
+9. Safe Index Clamping: Signature Help active signature and active parameter indices must be strictly validated and clamped within valid array bounds `[0, length - 1]` to prevent runtime exceptions or UI crashes.
+10. Untrusted Documentation Sanitization: All provider-supplied documentation, parameter descriptions, and markup must pass through `ContentSanitizer`. Arbitrary `<script>`, `<iframe>`, inline `on*` event handlers, and unsafe URL protocols are strictly prohibited.
+11. Canonical Navigation Integration: Any definition location or navigation target exposed within a hover card must route strictly through `NavigationCoordinator.navigateToLocation()`. Bypassing the navigation pipeline is forbidden.
+12. Modular Intelligence Boundary: Future LSP servers, compilers, and AI/SLM assistants must integrate as registered `LanguageIntelligenceProvider` instances declaring `hover` and/or `signatureHelp` capabilities.
+13. Privacy & Zero-Content Telemetry: Document text, cursor position, hover requests, signature parameters, and documentation content must NEVER be logged or transmitted over remote telemetry channels.
+
+## RULE 58 — CODE ACTIONS, QUICK FIXES & SAFE CODE TRANSFORMATION DISCIPLINE
+Phase 04 Step 44 establishes the permanent Code Action, Quick Fix, and Safe Code Transformation Foundation for QM Editor. All code actions, quick fixes, automated transformations, refactorings, and future LSP/AI code modifications must adhere to this unified foundation:
+1. Proposal Authority vs Mutation Authority: Code Action providers propose transformations; they must NEVER directly mutate editor models, document records, view states, or the filesystem.
+2. Edit Transaction System Exclusivity: All document mutations resulting from accepted code actions must pass through the authoritative `EditTransactionManager` / `EditorCoordinationService.applyTransaction({ source: 'codeAction' })`. Direct calls to `editor.executeEdits` or raw buffer slicing from UI or providers are strictly prohibited.
+3. Double Validation Rule: Code actions must be validated at presentation (applicability check) and revalidated rigorously at execution time (revision check, workspace check, boundary check, read-only check, overlap check).
+4. Stale Action Protection: Code actions are strictly revision-bound. If the user edits the document after an action is formulated, attempting to apply the old action must be safely rejected with `'stale'`. Stale transformations must never be applied blindly.
+5. Workspace Generation Protection: Actions generated in Workspace A must never execute in Workspace B. Workspace generation mismatch immediately aborts execution with `'workspace_mismatch'`.
+6. Non-Mutating Preview Invariant: Preview generation simulates edits purely on read-only in-memory string copies. Previews must NEVER mutate documents, alter dirty state, modify files on disk, or create undo history entries.
+7. Read-Only Document Integrity: Code action execution must respect document permissions. Applying an edit action to a read-only document must be rejected without mutating document content or throwing unhandled errors.
+8. Native Undo/Redo Integration: Applied code actions must register as standard reversible operations in `DocumentHistoryStack`. Undoing a code action must cleanly revert the text transformation in a single step without custom undo managers.
+9. Provider Isolation: Each code action provider executes within an isolated failure shield. A failure or crash in one provider must never crash the host editor or prevent other providers from returning valid actions.
+10. Cooperative Cancellation: Code action generation must pass a `CancellationToken`. Moving the cursor, typing, switching documents, or closing tabs must cancel pending requests immediately.
+11. Resource Operation Safety: Resource lifecycle operations (create, rename, delete) must route strictly through `FileService` and workspace root boundary validation. Executing arbitrary shell commands or raw OS filesystem mutations is forbidden.
+12. Privacy & Zero-Content Telemetry: Document source code, cursor ranges, proposed transformations, and preview contents must NEVER be logged, serialized to telemetry, or transmitted across unauthorized networks.
+
+## RULE 59 — PHASE 04 CORE APPLICATION ENGINE INTEGRATION & HARDENING DISCIPLINE
+Phase 04 Step 45 establishes the permanent Core Engine Integration, Authority Matrix, and Reliability Discipline for QM Editor upon completing Phase 04. All current and future systems (including Phase 05 Data Architecture, Phase 06 Advanced Features, and Phase 07 AI/LLM/SLM) must strictly adhere to these unified architectural invariants:
+1. One Authority Per State Domain:
+   - Application Lifecycle → `ApplicationRuntime`
+   - Workspace Context & Generation → `WorkspaceEngine`
+   - Document Buffers, Revisions & Dirty State → `DocumentEngine`
+   - Text Mutation Authorization → `EditTransactionManager`
+   - Filesystem I/O Operations → `FileService`
+   - Filesystem Observation → `FileSystemWatcherService`
+   - Undo/Redo Stacks → `DocumentHistoryService`
+   - Issue Lifecycle & Markers → `DiagnosticService`
+   - Document Outline & Symbols → `SymbolService`
+   - Spatial Jumps & History → `NavigationCoordinator`
+   - Language Providers → `LanguageIntelligenceRegistry`
+   - Command Execution & Bindings → `CommandRegistry`
+   - User Notifications & Dialogs → `FeedbackService`
+   Subsystems, plugins, or extensions must NEVER create competing duplicate authorities for any of these domains.
+2. Controlled Mutation Boundary: No UI component, language provider, background watcher, or future AI/SLM assistant may directly mutate document text or disk files. All text mutations must route through `EditTransactionManager` / `EditorCoordinationService.applyTransaction()` with an explicit `TransactionOrigin`.
+3. Deterministic Event Sequencing: State-changing events must be emitted only after the underlying state has been validated and committed. Notifications must never precede actual mutation.
+4. Double Validation Rule: All asynchronous proposals (code actions, completions, external reloads) must be validated at proposal time and strictly revalidated at execution time.
+5. Zero Silent Data Loss: External modifications to dirty documents must trigger non-destructive conflict warnings, preserving local user edits unconditionally.
+6. Workspace Boundary Containment: Resource operations and file observation paths must remain strictly within active workspace roots. Path traversals outside workspace boundaries are prohibited.
+7. Provider Trust Boundary: All language providers are treated as potentially untrusted and run within isolated `Promise.allSettled` try/catch boundaries. Malfunctioning providers must never crash the editor host.
+8. Non-Mutating Information & Previews: Hover cards, signature hints, outline panels, and code action preview diffs must never mutate document buffers, alter dirty flags, write to disk, or create undo history entries.
+9. Cooperative Request Cancellation: All asynchronous queries must accept a `CancellationToken`. Rapid cursor movements or typing must abort pending queries immediately.
+10. Strict Stop Boundary Discipline: Phase 04 ends at Step 45. Future phases (Phase 05 Data & Storage Architecture, Phase 06 Advanced Features, Phase 07 AI Layer) must build on top of these established core engine boundaries, never around or beneath them.
+
+## RULE 60 — DATA & STORAGE ARCHITECTURE, PERSISTENCE BOUNDARIES & SCHEMA GOVERNANCE DISCIPLINE
+Phase 05 Step 46 establishes the permanent Data & Storage Architecture Foundation, Persistence Boundaries, and Schema Governance for QM Editor. All Phase 05 features and future extensions must strictly enforce these storage and persistence invariants:
+1. Defined Domain Ownership: Every persisted dataset must have an authoritative domain owner (`SettingsService`, `WorkspaceEngine`, `SessionService`). Storage is durable infrastructure, not a second domain authority.
+2. Direct UI Storage Prohibition: UI components (`React`, panels, dialogs) must NEVER access physical storage, database adapters, or `localStorage` directly. All persistence routes through Domain Services and Repositories.
+3. Strict Serialization Boundary: Runtime objects (functions, symbols, DOM nodes, CodeMirror editor views, circular structures) must NEVER be passed to persistence. Explicit DTO transformations (`toPersistence()` / `fromPersistence()`) are required.
+4. Mandatory Schema Versioning: Every persistent structured dataset must declare a positive integer `schemaVersion` managed by `SchemaRegistry`. Arbitrary untyped blobs are prohibited.
+5. Migration Requirement: Schema changes must be accompanied by explicit, ordered migrations in `MigrationRegistry`. Migrations must preserve user data, validate each step, and abort safely without corrupting stored records.
+6. Unsupported Schema Downgrades: Schema downgrades are strictly rejected with `StorageMigrationError`. Stored records with higher schema versions must never be silently overwritten or truncated.
+7. Local-First & Zero Egress: All storage operations must remain local. No cloud synchronization, remote telemetry databases, or external network data copies are permitted without explicit future architecture and user consent.
+8. Secrets & Plaintext Credential Prohibition: Plaintext credentials (passwords, private keys, API secrets, auth tokens) must NEVER be stored in ordinary persistence. `StorageSerializer` actively scans and rejects sensitive keys with `StorageSensitiveDataError`.
+9. Cache & Derived Separation: Caches and derived data (search indexes, symbol outlines, completions) must remain discardable, unbacked, and logically separated from durable user state. Caches must never become authoritative user state.
+10. Honest Storage Health Reporting: Storage failures, read-only filesystem modes, quota exhaustion, and corruption must be surfaced honestly via `StorageHealthReport`. The system must never silently swallow storage errors or fabricate fake success.
+11. Stale Write Protection: Monotonically increasing `recordVersion` and serialized per-key write queues protect against concurrency race conditions. Callers with stale `expectedRecordVersion` must be rejected with `StorageVersionConflictError`.
+12. Workspace Partitioning & Isolation: Workspace-scoped storage must be partitioned under `ws:<workspaceId>:<key>`. Workspace A must never read, overwrite, or mutate Workspace B's storage records.
+13. No Competing Storage Engines: No subsystem or plugin may create its own ad-hoc persistent storage engine. All durable application and workspace data must integrate through the canonical `StorageService` and `IStorageAdapter` architecture.
+
+## RULE 61 — WORKSPACE PERSISTENCE, METADATA & SESSION STORAGE DISCIPLINE
+Phase 05 Step 47 establishes the authoritative Persistent Workspace Metadata, Workspace State, Recent Workspaces, and Safe Workspace Session Storage subsystem for QM Editor. All workspace persistence interactions must strictly uphold these engineering boundaries:
+1. WorkspaceEngine Runtime Authority: The Workspace Engine (`WorkspaceEngine`) remains the sole runtime authority for workspace lifecycles, active roots, and generation tracking. Persistent storage is strictly the durable representation used to restore approved state. Storage must never act as a second workspace engine.
+2. Single Canonical Workspace Identity: Persistent workspace identity is strictly derived from normalized canonical root URIs (`ws-${normUri...}`). The application must never create or rely on duplicate, competing, or disconnected storage workspace IDs.
+3. Strict Boundary Isolation: Workspace A must never load, mutate, or leak session state into Workspace B. During session persistence, open documents outside the active workspace roots must be filtered out immediately.
+4. Open File Reference != Unsaved Document Content: Workspace session persistence only remembers open file references and view state coordinates. Unsaved dirty buffer content is NOT claimed to be recovered until Phase 05 document history/crash recovery (Step 48+). Live physical files on disk remain authoritative for file contents.
+5. Untitled Document Exclusion: Untitled in-memory buffers without real filesystem paths must be excluded from persistent workspace session storage to avoid creating corrupted or orphaned references on reload.
+6. Partial Restoration Resilience: Missing, moved, deleted, or unauthorized session files must be safely skipped during restoration. A failure to restore one file must never crash the session or halt the restoration of remaining valid files.
+7. Generational State Protection: Every session restore operation must carry and check the active WorkspaceEngine generation. If a workspace switch or close occurs while asynchronous restoration is in progress, the operation must immediately abort and reject stale results.
+8. Controlled Persistence Boundaries: State persistence must occur at designated lifecycle boundaries (workspace open, workspace close, workspace switch, shutdown) and through debounced writes (coalescing rapid sequential tab changes). High-frequency writing on every character or cursor step is strictly prohibited.
+9. Bounded Recent Workspaces: Recent workspace history must remain strictly bounded with deterministic MRU ordering and path-based deduplication. Inaccessible or temporarily unmounted workspaces must not cause startup crashes.
+10. Explicit Serialization & DTOs: Only serializable DTOs (`WorkspaceMetadataDTO`, `WorkspaceSessionDTO`, `RecentWorkspaceDTO`) may be persisted. Transient runtime objects (editor views, DOM references, event listeners, promises) must never enter persistent storage.
+
+## RULE 62 — DOCUMENT METADATA, RESOURCE STATE & PERSISTENCE FOUNDATION DISCIPLINE
+Phase 05 Step 48 establishes the authoritative Persistent Document Metadata, Resource State & Document Persistence Foundation for QM Editor. All document persistence interactions must strictly uphold these engineering boundaries:
+1. Filesystem Saved Content Authority: The filesystem remains the sole authoritative source for saved file contents. Persistent metadata is descriptive application knowledge, not a secondary content archive.
+2. Document Engine Runtime Authority: The Document Engine (`DocumentEngine`) remains the authoritative owner of runtime document state, revisions, dirty flags, and capabilities. Storage must never become a second Document Engine.
+3. Content Serialization Prohibition: Document metadata persistence must NEVER store source code, buffer text, unsaved edits, or snippets. Persistent metadata stores only approved non-content metadata (`languageId`, `encoding`, `lineEnding`, `isReadOnly`, timestamps, size, cursor coordinates).
+4. Runtime Object Exclusion: Runtime editor and document objects (CodeMirror instances, DOM references, event subscriptions, promises, cancellation tokens) must NEVER be passed to storage. Only versioned DTOs (`DocumentMetadataDTO`, `ResourceStateDTO`) are permitted.
+5. Distinct Identity Triad: `documentId` (runtime-only identifier in `DocumentRegistry`), `resourceUri` (durable canonical resource identifier), and `workspaceId` (containing workspace context) must remain distinct and never collapsed into one.
+6. Path & Resource Validation: All persisted paths and resource URIs must be validated through the canonical `ResourceIdentity` and `WorkspaceResourceBoundary` before use. Invalid or out-of-scope paths must be rejected safely.
+7. Save Metadata Integrity: Document metadata must only be updated with `lastSavedAt` and refreshed file stats AFTER actual filesystem write success. If save fails, metadata updates must be suppressed; false save success must never be reported.
+8. Save As & Rename Migration: When a document is saved as or renamed, metadata must be cleanly migrated from the old to the new URI, and old records must be cleaned up to prevent orphaned duplicates.
+9. Watcher-Driven External Reconciliation: External file events (modify, delete, rename) must route through `FileSystemWatcherService` / `ResourceSynchronizationService` into `DocumentEngine`. Persistence must never poll or observe the filesystem directly.
+10. Stale Persistence & Race Protection: Optimistic concurrency (`expectedRecordVersion`) and serialized write queues protect against concurrency races. Stale writes must never overwrite newer metadata.
+11. No False Recovery Claims: Persistent document metadata does NOT imply unsaved-content recovery or crash recovery. Unsaved content recovery remains a dedicated future subsystem.
+12. Versioned Schema Governance: Document metadata and resource state schemas (`qm.document.metadata`, `qm.resource.state`) must be registered with `SchemaRegistry` and evolve strictly via versioned migrations in `MigrationRegistry`.
+
+## RULE 63 — SETTINGS, PREFERENCES & CONFIGURATION PERSISTENCE DISCIPLINE
+Phase 05 Step 49 establishes the authoritative Persistent Settings, Preferences and Configuration Storage subsystem for QM Editor. All configuration and preferences persistence interactions must strictly uphold these engineering boundaries:
+1. Settings System Configuration Authority: The Settings System (`SettingsRegistry` & `SettingsService`) remains the sole authority for configuration semantics, definitions, defaults, scopes, precedence, types, validation rules, and runtime behavior.
+2. Storage Subsystem Persistence Boundary: Storage (`SettingsRepository` & `StorageService`) is strictly the durable persistence mechanism for approved overrides. Storage never determines defaults, precedence, or whether a setting exists.
+3. No Private Configuration Silos: No editor feature, language provider, AI system, terminal subsystem, or plugin may create a private `.json` or isolated config store for ordinary configuration. All configuration must register into the unified `SettingsRegistry` and route through `SettingsService`.
+4. Persist Overrides, Not Redundant Defaults: Storage persists only explicit overrides (`userSettings`, `workspaceSettings`). Defaults belong strictly to `SettingsRegistry` and are never redundantly stored in persistent records.
+5. Validation Precedes Persistence: Setting changes must pass validation (`SettingsService.validateValue()`) against the definition schema before any in-memory state or storage record is updated. Invalid values must be rejected immediately.
+6. Stale Write & Concurrency Protection: Stale settings writes must never overwrite newer values. Storage operations utilize monotonic `recordVersion` and `expectedRecordVersion` checks to prevent race conditions.
+7. Strict Workspace Context Isolation: Workspace settings are strictly partitioned by canonical workspace ID (`ws:<workspaceId>:settings`). Workspace A overrides must never mutate, contaminate, or leak into Workspace B.
+8. Workspace Generation Safety: Asynchronous workspace settings operations carry the active `currentWorkspaceGeneration`. Late responses from previous workspaces must be discarded immediately upon context switch.
+9. Plaintext Secrets Prohibition: Sensitive settings (API keys, auth tokens, passwords, credentials) must NEVER be persisted in ordinary plaintext configuration storage. `SettingsService` rejects sensitive writes, redacts sensitive keys from exports, and masks values in logs.
+10. Explicit Versioned Migrations: Settings schema migrations must be explicit, versioned (`qm.settings.user`, `qm.settings.workspace`), and registered in `MigrationRegistry`. Loose coercion is forbidden.
+11. Unknown & Removed Settings Safety: Unrecognized settings keys from future/external versions must be safely preserved without polluting runtime registered lookups. Removed settings must be cleanly pruned or migrated.
+12. Direct UI Storage Prohibition: Settings UI components and modal dialogs must never write directly to storage or `localStorage`. All user interactions must route through `SettingsService.set()`, `setAsync()`, or `reset()`.
+13. Zero False Persistence Success: Persistence failures (such as read-only storage or disk write errors) must never be falsely reported as successful configuration changes. `setAsync()` rolls back in-memory state on persistence failure and reports the error honestly.
+14. Coalesced Writes & Clean Shutdown: Rapid setting updates (e.g., sliders) must use debounced persistence coalescing. Application shutdown and workspace switches must flush all pending writes via `SettingsService.flush()`.
+

@@ -8,3 +8,4 @@ export * from './WorkspaceErrors';
 export * from './WorkspaceResourceBoundary';
 export * from './WorkspaceEngine';
 export * from './WorkspaceTestContainer';
+export * from './WorkspacePersistenceCoordinator';

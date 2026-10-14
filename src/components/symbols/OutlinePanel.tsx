@@ -1,6 +1,6 @@
 /**
  * QM Editor Outline Panel (Active Document Symbol Tree)
- * Phase 04, Step 35 — Symbol Infrastructure, Outline & Symbol Navigation
+ * Phase 04, Step 35 & Step 41 — Symbol Infrastructure, Outline & Symbol Navigation
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -8,14 +8,17 @@ import { useWorkspace } from '../../state/WorkspaceContext';
 import { useNavigation } from '../../state/NavigationContext';
 import { DocumentSymbol } from '../../core/symbols/SymbolTypes';
 import { globalSymbolService } from '../../core/symbols/SymbolService';
+import { globalNavigationCoordinator } from '../../core/navigation/NavigationCoordinator';
 import { SymbolIcon } from './SymbolIcon';
-import { ChevronRight, ChevronDown, Filter } from 'lucide-react';
+import { ChevronRight, ChevronDown, Filter, Loader2 } from 'lucide-react';
 import { EmptyState } from '../common/EmptyState';
 
 export const OutlinePanel: React.FC = () => {
   const { activeDoc } = useWorkspace();
   const { currentPos } = useNavigation();
   const [symbols, setSymbols] = useState<DocumentSymbol[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hasError, setHasError] = useState<boolean>(false);
   const [filterQuery, setFilterQuery] = useState<string>('');
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
 
@@ -23,20 +26,28 @@ export const OutlinePanel: React.FC = () => {
   useEffect(() => {
     if (!activeDoc) {
       setSymbols([]);
+      setIsLoading(false);
+      setHasError(false);
       return;
     }
 
     let isSubscribed = true;
+    setIsLoading(true);
+    setHasError(false);
+
     globalSymbolService
       .getDocumentSymbols(activeDoc)
       .then((res) => {
         if (isSubscribed) {
           setSymbols(res);
+          setIsLoading(false);
         }
       })
       .catch(() => {
         if (isSubscribed) {
           setSymbols([]);
+          setIsLoading(false);
+          setHasError(true);
         }
       });
 
@@ -59,10 +70,15 @@ export const OutlinePanel: React.FC = () => {
   };
 
   const handleSymbolClick = (sym: DocumentSymbol) => {
-    window.dispatchEvent(
-      new CustomEvent('qm:editor:gotoline', {
-        detail: { line: sym.range.startLine, column: sym.range.startColumn },
-      })
+    if (!activeDoc) return;
+    const uri = activeDoc.fileResource?.uri || activeDoc.filePath || activeDoc.title;
+    globalNavigationCoordinator.navigateToLocation(
+      {
+        uri,
+        range: sym.range,
+        selectionRange: sym.selectionRange,
+      },
+      { origin: 'outline' }
     );
   };
 
@@ -115,6 +131,20 @@ export const OutlinePanel: React.FC = () => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 handleSymbolClick(sym);
+              } else if (e.key === 'ArrowRight' && hasChildren && isCollapsed) {
+                e.preventDefault();
+                setCollapsedNodes((prev) => {
+                  const next = new Set(prev);
+                  next.delete(id);
+                  return next;
+                });
+              } else if (e.key === 'ArrowLeft' && hasChildren && !isCollapsed) {
+                e.preventDefault();
+                setCollapsedNodes((prev) => {
+                  const next = new Set(prev);
+                  next.add(id);
+                  return next;
+                });
               }
             }}
             style={{
@@ -221,7 +251,19 @@ export const OutlinePanel: React.FC = () => {
           padding: '4px 0',
         }}
       >
-        {!activeDoc ? (
+        {isLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '32px 16px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+            <Loader2 size={16} className="animate-spin" />
+            <span>Analyzing document symbols...</span>
+          </div>
+        ) : hasError ? (
+          <div style={{ padding: '24px 16px' }}>
+            <EmptyState
+              title="Symbol Analysis Failed"
+              description="Could not extract symbols for the current document."
+            />
+          </div>
+        ) : !activeDoc ? (
           <div style={{ padding: '24px 16px' }}>
             <EmptyState
               title="No Document Active"

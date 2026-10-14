@@ -1,6 +1,6 @@
 /**
  * QM Editor Canonical Symbol & Outline Service
- * Phase 04, Step 35 — Symbol Infrastructure, Outline & Symbol Navigation
+ * Phase 04, Step 35 & Step 41 — Symbol Infrastructure, Outline & Symbol Navigation
  */
 
 import { DocumentModel } from '../../types';
@@ -9,21 +9,11 @@ import {
   WorkspaceSymbol,
   CancellationToken,
 } from './SymbolTypes';
-import { extractDocumentSymbols } from './SymbolExtractors';
-import { workspaceIndexService } from '../../services/WorkspaceIndexService';
-import { fileService } from '../../services/FileService';
-import { logger } from '../../utils/logger';
-
-interface CachedDocSymbols {
-  revision: number;
-  symbols: DocumentSymbol[];
-}
+import { globalSymbolEngine } from './SymbolEngine';
 
 export class SymbolService {
   private static instance: SymbolService | null = null;
-
-  private readonly documentCache: Map<string, CachedDocSymbols> = new Map();
-  private querySequence: number = 0;
+  private readonly legacyCache = new Map<string, { revision: number; symbols: DocumentSymbol[] }>();
   private isDisposed: boolean = false;
 
   public static getInstance(): SymbolService {
@@ -34,7 +24,7 @@ export class SymbolService {
   }
 
   /**
-   * Retrieves symbols for a specific document, leveraging cached revision structures.
+   * Retrieves symbols for a specific document, delegating to the canonical SymbolEngine.
    */
   public async getDocumentSymbols(
     document: DocumentModel,
@@ -46,27 +36,38 @@ export class SymbolService {
       return [];
     }
 
-    const cached = this.documentCache.get(document.id);
+    const cached = this.legacyCache.get(document.id);
     if (cached && cached.revision === document.contentRevision) {
       return cached.symbols;
     }
 
-    const symbols = extractDocumentSymbols(document.content, document.language);
+    const uri = document.fileResource?.uri || document.filePath || document.title;
+    const res = await globalSymbolEngine.getDocumentSymbols(
+      {
+        id: document.id,
+        uri,
+        content: document.content,
+        language: document.language,
+        contentRevision: document.contentRevision,
+      },
+      token
+    );
 
     if (token?.isCancellationRequested) {
       return [];
     }
 
-    this.documentCache.set(document.id, {
+    const legacySymbols = this.mapToLegacyDocumentSymbols(res.symbols);
+    this.legacyCache.set(document.id, {
       revision: document.contentRevision,
-      symbols,
+      symbols: legacySymbols,
     });
 
-    return symbols;
+    return legacySymbols;
   }
 
   /**
-   * Searches symbols across all indexed workspace resources with cancellation and stale-result protection.
+   * Searches symbols across all indexed workspace resources via canonical SymbolEngine.
    */
   public async getWorkspaceSymbols(
     query: string,
@@ -74,119 +75,62 @@ export class SymbolService {
   ): Promise<WorkspaceSymbol[]> {
     if (this.isDisposed) return [];
 
-    const currentSeq = ++this.querySequence;
-    const trimmedQuery = query.trim().toLowerCase();
-    const results: WorkspaceSymbol[] = [];
-
-    const resources = workspaceIndexService.getResources();
-    if (!resources || resources.length === 0) {
-      return [];
-    }
-
-    // Filter relevant code resources (skip binaries, images, lockfiles)
-    const codeResources = resources.filter((res) => {
-      const ext = res.name.split('.').pop()?.toLowerCase();
-      return (
-        ext &&
-        ['ts', 'tsx', 'js', 'jsx', 'py', 'md', 'json', 'html', 'css', 'go', 'rs', 'c', 'cpp'].includes(ext)
-      );
-    });
-
-    for (const res of codeResources) {
-      if (token?.isCancellationRequested || currentSeq !== this.querySequence) {
-        return [];
-      }
-
-      try {
-        let content: string | null = null;
-        if (res.handle && 'kind' in res.handle && (res.handle as any).kind === 'file') {
-          const fileData = await fileService.readFile(res.handle as FileSystemFileHandle);
-          content = fileData.content;
-        }
-
-        if (token?.isCancellationRequested || currentSeq !== this.querySequence) {
-          return [];
-        }
-
-        if (content) {
-          const docSymbols = extractDocumentSymbols(content, res.name.split('.').pop() || 'plaintext');
-          const flattened = this.flattenSymbols(docSymbols, res.uri);
-
-          for (const sym of flattened) {
-            if (!trimmedQuery || sym.name.toLowerCase().includes(trimmedQuery)) {
-              results.push(sym);
-            }
-          }
-        }
-      } catch (err) {
-        logger.debug('Failed to index file for workspace symbols', {
-          uri: res.uri,
-          error: (err as Error).message,
-        });
-      }
-    }
-
-    if (token?.isCancellationRequested || currentSeq !== this.querySequence) {
-      return [];
-    }
-
-    // Sort results: exact matches first, then prefix matches, then alphabetical
-    return results.sort((a, b) => {
-      const aName = a.name.toLowerCase();
-      const bName = b.name.toLowerCase();
-      if (trimmedQuery) {
-        const aExact = aName === trimmedQuery;
-        const bExact = bName === trimmedQuery;
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
-
-        const aStarts = aName.startsWith(trimmedQuery);
-        const bStarts = bName.startsWith(trimmedQuery);
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
-      }
-      return aName.localeCompare(bName);
-    });
+    const symbols = await globalSymbolEngine.getWorkspaceSymbols(query, token);
+    return symbols.map((s) => ({
+      name: s.name,
+      kind: s.kind,
+      tags: s.tags,
+      containerName: s.containerName,
+      location: {
+        uri: s.location.uri,
+        range: s.location.range || {
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      },
+    }));
   }
 
-  /**
-   * Flattens a hierarchy of DocumentSymbols into WorkspaceSymbols with container tracking.
-   */
-  private flattenSymbols(symbols: DocumentSymbol[], uri: string, parentContainer?: string): WorkspaceSymbol[] {
-    const list: WorkspaceSymbol[] = [];
+  private mapToLegacyDocumentSymbols(symbols: any[]): DocumentSymbol[] {
+    return symbols.map((s) => {
+      const range = s.location?.range || {
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      };
+      const selectionRange = s.selectionRange || range;
 
-    for (const sym of symbols) {
-      list.push({
-        name: sym.name,
-        kind: sym.kind,
-        tags: sym.tags,
-        containerName: sym.containerName || parentContainer,
-        location: {
-          uri,
-          range: sym.range,
-        },
-      });
-
-      if (sym.children && sym.children.length > 0) {
-        list.push(...this.flattenSymbols(sym.children, uri, sym.name));
-      }
-    }
-
-    return list;
+      return {
+        name: s.name,
+        detail: s.detail,
+        kind: s.kind,
+        tags: s.tags,
+        range,
+        selectionRange,
+        containerName: s.containerName,
+        children: s.children ? this.mapToLegacyDocumentSymbols(s.children) : undefined,
+      };
+    });
   }
 
   public clearCache(documentId?: string): void {
     if (documentId) {
-      this.documentCache.delete(documentId);
+      this.legacyCache.delete(documentId);
+      globalSymbolEngine.invalidateDocument(documentId);
     } else {
-      this.documentCache.clear();
+      this.legacyCache.clear();
+      globalSymbolEngine.clearCache();
     }
   }
 
   public dispose(): void {
     if (this.isDisposed) return;
     this.isDisposed = true;
-    this.documentCache.clear();
+    this.legacyCache.clear();
+    globalSymbolEngine.clearCache();
   }
 }
 

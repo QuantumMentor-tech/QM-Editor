@@ -8,3 +8,4 @@ export * from './DocumentErrors';
 export * from './ResourceIdentity';
 export * from './DocumentRegistry';
 export * from './DocumentEngine';
+export * from './DocumentPersistenceCoordinator';

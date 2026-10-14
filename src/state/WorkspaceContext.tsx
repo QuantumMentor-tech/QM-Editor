@@ -15,13 +15,14 @@ import { RecentDocumentsService } from '../services/RecentDocumentsService';
 import { SessionService } from '../services/SessionService';
 import { logger } from '../utils/logger';
 import { globalFeedbackService } from '../core/feedback/FeedbackService';
-import { globalWorkspaceEngine } from '../core/workspace';
+import { globalWorkspaceEngine, globalWorkspacePersistenceCoordinator } from '../core/workspace';
 import { EditTransaction, CommittedEditTransaction, globalEditTransactionManager } from '../core/edit';
 import { globalFileSystemWatcherService } from '../core/watcher';
 import { globalDocumentHistoryService } from '../core/history';
 import { globalDiagnosticService } from '../core/diagnostics';
 import { globalDocumentEngine } from '../core/documents';
 import { globalEditorCoordinationService } from '../core/editor';
+import { globalNavigationCoordinator } from '../core/navigation';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -83,6 +84,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const activePath = activeDoc?.filePath || activeDoc?.fileResource?.uri;
     SessionService.saveSession(openPaths, activePath);
+    globalWorkspacePersistenceCoordinator.scheduleSessionSave();
   }, [openDocs, activeDoc]);
 
   // Register unsaved document protection with the Workspace Engine
@@ -141,6 +143,29 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [openDocs, registry.documents]);
 
+  // Wire centralized NavigationCoordinator to Workspace document activation & opener
+  useEffect(() => {
+    const unregisterOpener = globalNavigationCoordinator.registerDocumentOpener({
+      openDocument: async (uri: string) => {
+        await openFilePath(uri);
+        const norm = uri.replace(/\\/g, '/').toLowerCase();
+        const found = openDocs.find(
+          (d) =>
+            (d.filePath && d.filePath.replace(/\\/g, '/').toLowerCase() === norm) ||
+            (d.fileResource?.uri && d.fileResource.uri.replace(/\\/g, '/').toLowerCase() === norm) ||
+            d.title.toLowerCase() === norm
+        );
+        return found ? found.id : null;
+      },
+      activateDocument: (documentId: string) => {
+        activateDoc(documentId);
+      },
+      getActiveDocumentId: () => activeDoc?.id || null,
+    });
+
+    return unregisterOpener;
+  }, [openDocs, activeDoc?.id]);
+
   const openDoc = (doc: DocumentModel) => {
     if (!globalDocumentEngine.hasDocument(doc.id)) {
       const uri = doc.fileResource?.uri || doc.filePath || doc.title;
@@ -192,13 +217,25 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         exists: true,
       };
 
+      // Check if document already exists in authoritative DocumentEngine
+      const engineDoc = globalDocumentEngine.getByResource(normalizedPath);
+      const initialContent = engineDoc ? engineDoc.content : '';
+      const initialLanguage = engineDoc ? engineDoc.languageId : 'plaintext';
+
       const newDoc = createNewDocument(
         filename,
-        '',
-        'plaintext',
+        initialContent,
+        initialLanguage,
         normalizedPath,
         resource
       );
+
+      if (!engineDoc) {
+        await globalDocumentEngine.openResource(normalizedPath, {
+          initialContent,
+          languageId: initialLanguage,
+        }).catch(() => {});
+      }
 
       setRegistry((prev) => registerOpenDocument(prev, newDoc));
       RecentDocumentsService.addRecentDocument(normalizedPath, filename);

@@ -243,6 +243,61 @@ export const defaultCommands: Command[] = [
     },
   },
   {
+    id: 'editor.action.triggerSuggest',
+    label: 'Trigger Suggest',
+    category: 'editor',
+    shortcut: 'Mod+Space',
+    description: 'Trigger language intelligence and completion suggestions',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(new CustomEvent('qm:editor:triggersuggest'));
+    },
+  },
+  {
+    id: 'editor.action.showHover',
+    label: 'Show Hover Information',
+    category: 'editor',
+    shortcut: 'Mod+I',
+    description: 'Show contextual language documentation and type information for current symbol',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(new CustomEvent('qm:editor:showhover'));
+    },
+  },
+  {
+    id: 'editor.action.triggerParameterHints',
+    label: 'Trigger Parameter Hints',
+    category: 'editor',
+    shortcut: 'Mod+Shift+Space',
+    description: 'Trigger function signature help and active parameter information',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(new CustomEvent('qm:editor:triggerparameterhints'));
+    },
+  },
+  {
+    id: 'editor.action.quickFix',
+    label: 'Quick Fix...',
+    category: 'editor',
+    shortcut: 'Mod+.',
+    description: 'Show code actions and quick fixes for current location and diagnostics',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(new CustomEvent('qm:editor:quickfix'));
+    },
+  },
+  {
+    id: 'editor.action.codeAction',
+    label: 'Code Actions...',
+    category: 'editor',
+    shortcut: 'Alt+Enter',
+    description: 'Show available refactorings and source actions for current selection',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(new CustomEvent('qm:editor:quickfix'));
+    },
+  },
+  {
     id: 'editor.zoomIn',
     label: 'Zoom In (Increase Font Size)',
     category: 'editor',

@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
-import { NavigationService } from '../services/NavigationService';
+import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
+import { NavigationService, globalNavigationService } from '../services/NavigationService';
 import { EditorLocation, NavigationHistoryState } from '../types';
+import { globalNavigationCoordinator } from '../core/navigation';
 
 export interface NavigationContextApi {
   currentPos: { line: number; column: number };
@@ -16,13 +17,28 @@ export interface NavigationContextApi {
 const NavigationContext = createContext<NavigationContextApi | undefined>(undefined);
 
 export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const navServiceRef = useRef<NavigationService>(new NavigationService());
+  const navServiceRef = useRef<NavigationService>(globalNavigationService);
   const [currentPos, setCurrentPosState] = useState<{ line: number; column: number }>({ line: 1, column: 1 });
   const [historyState, setHistoryState] = useState<NavigationHistoryState>(() => navServiceRef.current.getState());
 
   const syncState = useCallback(() => {
     setHistoryState(navServiceRef.current.getState());
   }, []);
+
+  // Sync state whenever NavigationCoordinator completes a navigation jump
+  useEffect(() => {
+    const unregister = globalNavigationCoordinator.on('navigation.completed', (payload) => {
+      syncState();
+      if (payload.location.range) {
+        setCurrentPosState({
+          line: payload.location.range.startLine,
+          column: payload.location.range.startColumn,
+        });
+      }
+    });
+
+    return unregister;
+  }, [syncState]);
 
   const setCurrentPos = useCallback((pos: { line: number; column: number }) => {
     setCurrentPosState(pos);

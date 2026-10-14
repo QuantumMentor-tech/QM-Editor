@@ -42,6 +42,7 @@ export interface SettingDefinition<T = any> {
   max?: number;
   step?: number;
   restartRequired?: boolean;
+  sensitive?: boolean;
   validate?: (value: unknown) => SettingValidationResult;
 }
 
