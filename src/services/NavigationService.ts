@@ -82,17 +82,77 @@ export class NavigationService {
     };
   }
 
+  public loadHistoryState(state: NavigationHistoryState): void {
+    if (!state) return;
+    this.backStack = Array.isArray(state.backStack)
+      ? state.backStack.slice(-MAX_HISTORY_STACK_SIZE)
+      : [];
+    this.forwardStack = Array.isArray(state.forwardStack)
+      ? state.forwardStack.slice(0, MAX_HISTORY_STACK_SIZE)
+      : [];
+    this.currentLocation = state.currentLocation ? { ...state.currentLocation } : null;
+  }
+
+  public getLocations(): EditorLocation[] {
+    const list: EditorLocation[] = [];
+    if (this.currentLocation) list.push(this.currentLocation);
+    for (let i = this.backStack.length - 1; i >= 0; i--) {
+      list.push(this.backStack[i]);
+    }
+    for (const f of this.forwardStack) {
+      list.push(f);
+    }
+
+    const seen = new Set<string>();
+    const deduplicated: EditorLocation[] = [];
+    for (const loc of list) {
+      const key = `${loc.filePath || loc.documentId}:${loc.line}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduplicated.push(loc);
+      }
+    }
+    return deduplicated;
+  }
+
   public clearHistory(): void {
     this.backStack = [];
     this.forwardStack = [];
     this.currentLocation = null;
   }
 
-  public removeDocumentEntries(documentId: string): void {
-    this.backStack = this.backStack.filter((loc) => loc.documentId !== documentId);
-    this.forwardStack = this.forwardStack.filter((loc) => loc.documentId !== documentId);
-    if (this.currentLocation && this.currentLocation.documentId === documentId) {
+  public removeDocumentEntries(documentIdOrUri: string): void {
+    this.backStack = this.backStack.filter(
+      (loc) => loc.documentId !== documentIdOrUri && loc.filePath !== documentIdOrUri
+    );
+    this.forwardStack = this.forwardStack.filter(
+      (loc) => loc.documentId !== documentIdOrUri && loc.filePath !== documentIdOrUri
+    );
+    if (
+      this.currentLocation &&
+      (this.currentLocation.documentId === documentIdOrUri ||
+        this.currentLocation.filePath === documentIdOrUri)
+    ) {
       this.currentLocation = null;
+    }
+  }
+
+  public updateResourceUri(oldUri: string, newUri: string): void {
+    const updateLoc = (loc: EditorLocation): EditorLocation => {
+      if (loc.filePath === oldUri || loc.documentId === oldUri) {
+        return {
+          ...loc,
+          filePath: newUri,
+          documentTitle: newUri.split('/').pop() || loc.documentTitle,
+        };
+      }
+      return loc;
+    };
+
+    this.backStack = this.backStack.map(updateLoc);
+    this.forwardStack = this.forwardStack.map(updateLoc);
+    if (this.currentLocation) {
+      this.currentLocation = updateLoc(this.currentLocation);
     }
   }
 }

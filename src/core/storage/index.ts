@@ -15,3 +15,8 @@ export * from './repositories/SettingsRepository';
 export * from './repositories/WorkspaceStateRepository';
 export * from './repositories/SessionStateRepository';
 export * from './repositories/DocumentMetadataRepository';
+export * from './repositories/NavigationHistoryRepository';
+export * from './repositories/RecentResourceRepository';
+export * from './repositories/ResourceIndexRepository';
+export * from './repositories/DocumentRecoveryRepository';
+export * from './repositories/LocalHistoryRepository';

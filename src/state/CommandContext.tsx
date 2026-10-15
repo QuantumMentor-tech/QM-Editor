@@ -21,6 +21,8 @@ import { QuickOpenModal } from '../components/navigation/QuickOpenModal';
 import { WorkspaceSearchModal } from '../components/search/WorkspaceSearchModal';
 import { SourceControlDiffModal } from '../components/source-control/SourceControlDiffModal';
 import { GoToSymbolModal } from '../components/symbols/GoToSymbolModal';
+import { LocalHistoryModal } from '../components/history/LocalHistoryModal';
+import { BackupPortabilityModal } from '../components/backup/BackupPortabilityModal';
 import { workspaceIndexService } from '../services/WorkspaceIndexService';
 import { globalEditorCoordinationService } from '../core/editor';
 import { globalNavigationCoordinator } from '../core/navigation';
@@ -491,8 +493,21 @@ export const CommandProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ShortcutManager.handleKeyDown(e, commandContextRef.current, globalCommandRegistry);
     };
 
+    const handleOpenBackupModal = () => {
+      openDialog('Backup, Export & Safe Portability', <BackupPortabilityModal />);
+    };
+    const handleOpenLocalHistory = (e: any) => {
+      openDialog('Document Local History', <LocalHistoryModal resourceUri={e.detail?.resourceUri} />);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('qm-open-backup-modal', handleOpenBackupModal);
+    window.addEventListener('qm-open-local-history', handleOpenLocalHistory);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('qm-open-backup-modal', handleOpenBackupModal);
+      window.removeEventListener('qm-open-local-history', handleOpenLocalHistory);
+    };
   }, []);
 
   return (

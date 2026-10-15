@@ -177,6 +177,39 @@ export interface RecentDocumentDTO {
   readonly line?: number;
   readonly column?: number;
   readonly workspaceId?: string;
+  readonly kind?: 'file' | 'folder';
+  readonly accessCount?: number;
+}
+
+export interface RecentResourceDTO {
+  readonly resourceUri: string;
+  readonly name: string;
+  readonly lastAccessedAt: number;
+  readonly kind: 'file' | 'folder';
+  readonly workspaceId?: string;
+  readonly accessCount?: number;
+  readonly line?: number;
+  readonly column?: number;
+}
+
+export interface PersistentNavigationLocationDTO {
+  readonly uri: string;
+  readonly line: number;
+  readonly column: number;
+  readonly endLine?: number;
+  readonly endColumn?: number;
+  readonly workspaceId?: string;
+  readonly resourceId?: string;
+  readonly documentTitle?: string;
+  readonly timestamp: number;
+}
+
+export interface NavigationHistoryDTO {
+  readonly version: number;
+  readonly backStack: PersistentNavigationLocationDTO[];
+  readonly forwardStack: PersistentNavigationLocationDTO[];
+  readonly currentLocation: PersistentNavigationLocationDTO | null;
+  readonly updatedAt: number;
 }
 
 export interface DocumentMetadataDTO {
@@ -208,5 +241,142 @@ export interface ResourceStateDTO {
   readonly lastKnownModifiedTime?: number;
   readonly lastKnownSize?: number;
   readonly lastCheckedAt: number;
+}
+
+export interface ResourceIndexEntryDTO {
+  readonly resourceId: string;
+  readonly workspaceId: string;
+  readonly uri: string;
+  readonly relativePath: string;
+  readonly name: string;
+  readonly kind: 'file' | 'directory';
+  readonly parentPath: string;
+  readonly size?: number;
+  readonly modifiedAt?: number;
+  readonly fingerprint?: string;
+  readonly isBinary?: boolean;
+  readonly indexedAt: number;
+}
+
+export interface WorkspaceIndexDTO {
+  readonly version: number; // schema version 1
+  readonly formatVersion: number; // index format version 1
+  readonly workspaceId: string;
+  readonly rootUri: string;
+  readonly indexGeneration: number;
+  readonly workspaceGeneration: number;
+  readonly entries: ResourceIndexEntryDTO[];
+  readonly totalFiles: number;
+  readonly status: 'fresh' | 'stale' | 'rebuilding' | 'partial';
+  readonly indexedAt: number;
+}
+
+// ---------------------------------------------------------------------------
+// Document Recovery, Autosave & Crash-Safe Unsaved Work DTOs (Step 52)
+// ---------------------------------------------------------------------------
+
+export type RecoverySessionState = 'active' | 'clean' | 'candidate' | 'restored' | 'discarded';
+
+export interface RecoverySessionDTO {
+  readonly sessionId: string;
+  readonly workspaceId?: string;
+  readonly startedAt: number;
+  readonly lastUpdatedAt: number;
+  readonly state: RecoverySessionState;
+  readonly schemaVersion: number;
+}
+
+export interface RecoveryBaseFileMetadataDTO {
+  readonly path?: string;
+  readonly size?: number;
+  readonly modifiedAt?: number;
+  readonly fingerprint?: string;
+}
+
+export interface RecoveryDocumentDTO {
+  readonly recoveryId: string;
+  readonly sessionId: string;
+  readonly workspaceId?: string;
+  readonly documentId: string;
+  readonly resourceUri?: string; // undefined for untitled documents
+  readonly isUntitled: boolean;
+  readonly documentTitle: string;
+  readonly documentRevision: number;
+  readonly recoveryGeneration: number;
+  readonly dirty: boolean;
+  readonly baseFileMetadata?: RecoveryBaseFileMetadataDTO;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+}
+
+export interface RecoveryManifestDTO {
+  readonly version: number; // schema version 1
+  readonly sessionId: string;
+  readonly workspaceId?: string;
+  readonly startedAt: number;
+  readonly lastUpdatedAt: number;
+  readonly state: RecoverySessionState;
+  readonly documents: RecoveryDocumentDTO[];
+}
+
+export interface RecoverySnapshotDTO {
+  readonly version: number; // schema version 1
+  readonly recoveryId: string;
+  readonly sessionId: string;
+  readonly documentId: string;
+  readonly resourceUri?: string;
+  readonly isUntitled: boolean;
+  readonly documentRevision: number;
+  readonly recoveryGeneration: number;
+  readonly content: string;
+  readonly encoding: string;
+  readonly lineEnding: 'lf' | 'crlf' | 'cr';
+  readonly baseFileMetadata?: RecoveryBaseFileMetadataDTO;
+  readonly checksum: string;
+  readonly createdAt: number;
+}
+
+// ---------------------------------------------------------------------------
+// Local History & Document Snapshots DTOs (Step 53)
+// ---------------------------------------------------------------------------
+
+export type LocalHistorySource =
+  | 'save'
+  | 'manual'
+  | 'preRestore'
+  | 'externalSync'
+  | 'transformation';
+
+export interface LocalHistoryEntryDTO {
+  readonly id: string;
+  readonly historyEntryId?: string;
+  readonly resourceUri: string;
+  readonly workspaceId?: string;
+  readonly documentId?: string;
+  readonly createdAt: number;
+  readonly source: LocalHistorySource;
+  readonly documentRevision: number;
+  readonly contentHash: string;
+  readonly contentSize: number;
+  readonly encoding: string;
+  readonly lineEnding: 'lf' | 'crlf' | 'cr';
+  readonly languageId: string;
+  readonly label?: string;
+}
+
+export interface LocalHistorySnapshotDTO {
+  readonly version: number; // schema version 1
+  readonly id: string; // historyEntryId
+  readonly content: string;
+  readonly contentHash: string;
+  readonly createdAt: number;
+}
+
+export interface LocalHistoryManifestDTO {
+  readonly version: number; // schema version 1
+  readonly resourceUri: string;
+  readonly workspaceId?: string;
+  readonly entries: LocalHistoryEntryDTO[];
+  readonly lastUpdatedAt: number;
 }
 

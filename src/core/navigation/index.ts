@@ -6,3 +6,4 @@
 export * from './LocationTypes';
 export * from './LocationValidation';
 export * from './NavigationCoordinator';
+export * from './NavigationPersistenceCoordinator';

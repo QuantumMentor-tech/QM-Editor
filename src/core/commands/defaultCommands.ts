@@ -1,6 +1,8 @@
 import { Command } from './CommandTypes';
 import { globalFocusManager } from '../accessibility/FocusManager';
 import { globalEditorCoordinationService } from '../editor';
+import { globalLocalHistoryCoordinator } from '../local-history';
+import { globalDocumentEngine } from '../documents';
 
 export const defaultCommands: Command[] = [
   {
@@ -1010,6 +1012,92 @@ export const defaultCommands: Command[] = [
     execute: (ctx) => {
       if (ctx.shellActions.closeWelcome) {
         ctx.shellActions.closeWelcome();
+      }
+    },
+  },
+  {
+    id: 'history.open',
+    label: 'File: Open Local History...',
+    category: 'document',
+    description: 'Inspect and restore previous version snapshots of the active document',
+    canExecute: (ctx) => Boolean(ctx.activeDoc || globalDocumentEngine.getActiveDocument()),
+    execute: async (ctx) => {
+      const engineDoc = globalDocumentEngine.getActiveDocument();
+      const targetUri = engineDoc
+        ? engineDoc.resourceUri
+        : ctx.activeDoc?.fileResource?.uri || ctx.activeDoc?.filePath || ctx.activeDoc?.id || '';
+      if (!targetUri) return;
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('qm-open-local-history', { detail: { resourceUri: targetUri } })
+        );
+      }
+    },
+  },
+  {
+    id: 'history.createSnapshot',
+    label: 'File: Create Local History Snapshot',
+    category: 'document',
+    description: 'Manually capture a historical content snapshot of the active document',
+    canExecute: (ctx) => Boolean(ctx.activeDoc || globalDocumentEngine.getActiveDocument()),
+    execute: async (ctx) => {
+      const doc = globalDocumentEngine.getActiveDocument() || ctx.activeDoc;
+      if (!doc) return;
+      await globalLocalHistoryCoordinator.createSnapshot(doc.id, {
+        source: 'manual',
+        label: 'Manual Snapshot',
+      });
+    },
+  },
+  {
+    id: 'history.clearDocument',
+    label: 'File: Clear Document Local History',
+    category: 'document',
+    description: 'Purge all local history snapshots for the active document',
+    canExecute: (ctx) => Boolean(ctx.activeDoc || globalDocumentEngine.getActiveDocument()),
+    execute: async (ctx) => {
+      const engineDoc = globalDocumentEngine.getActiveDocument();
+      const targetUri = engineDoc
+        ? engineDoc.resourceUri
+        : ctx.activeDoc?.fileResource?.uri || ctx.activeDoc?.filePath || ctx.activeDoc?.id || '';
+      if (!targetUri) return;
+      await globalLocalHistoryCoordinator.clearHistory(targetUri);
+    },
+  },
+  {
+    id: 'backup.createBackup',
+    label: 'Backup: Create Full Application Backup...',
+    category: 'workspace',
+    shortcut: 'Mod+Alt+B',
+    description: 'Generate a portable backup package of settings, workspaces, and application state',
+    canExecute: () => true,
+    execute: async () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('qm-open-backup-modal', { detail: { tab: 'export' } }));
+      }
+    },
+  },
+  {
+    id: 'backup.exportSettings',
+    label: 'Backup: Export Settings & Preferences...',
+    category: 'workspace',
+    description: 'Export editor configuration and user settings to a portable package',
+    canExecute: () => true,
+    execute: async () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('qm-open-backup-modal', { detail: { tab: 'export', type: 'settingsExport' } }));
+      }
+    },
+  },
+  {
+    id: 'backup.importPackage',
+    label: 'Backup: Import Application Package...',
+    category: 'workspace',
+    description: 'Inspect, validate, and safely restore state from an exported package',
+    canExecute: () => true,
+    execute: async () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('qm-open-backup-modal', { detail: { tab: 'import' } }));
       }
     },
   },

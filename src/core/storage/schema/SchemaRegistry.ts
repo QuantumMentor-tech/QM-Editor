@@ -159,6 +159,196 @@ export class SchemaRegistry {
         );
       },
     });
+
+    // 8. Navigation History Schema (v1)
+    this.register({
+      schemaId: 'qm.navigation.history',
+      currentVersion: 1,
+      description: 'Durable navigation history, back/forward stacks, and locations',
+      validate: (data: unknown): data is any => {
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) return false;
+        const d = data as Record<string, any>;
+        return (
+          typeof d.version === 'number' &&
+          Array.isArray(d.backStack) &&
+          Array.isArray(d.forwardStack) &&
+          typeof d.updatedAt === 'number'
+        );
+      },
+    });
+
+    // 9. Workspace Resource Index & Search Cache Schema (v1)
+    this.register({
+      schemaId: 'qm.workspace.index',
+      currentVersion: 1,
+      description: 'Derived workspace resource index and search candidate metadata cache',
+      validate: (data: unknown): data is any => {
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) return false;
+        const d = data as Record<string, any>;
+        return (
+          typeof d.version === 'number' &&
+          typeof d.workspaceId === 'string' &&
+          d.workspaceId.trim().length > 0 &&
+          typeof d.rootUri === 'string' &&
+          typeof d.indexGeneration === 'number' &&
+          typeof d.workspaceGeneration === 'number' &&
+          Array.isArray(d.entries) &&
+          typeof d.totalFiles === 'number' &&
+          typeof d.indexedAt === 'number'
+        );
+      },
+    });
+
+    // 10. Document Recovery Manifest Schema (v1)
+    this.register({
+      schemaId: 'qm.recovery.manifest',
+      currentVersion: 1,
+      description: 'Durable session recovery manifest tracking unsaved document snapshot candidates',
+      validate: (data: unknown): data is any => {
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) return false;
+        const d = data as Record<string, any>;
+        const validStates = ['active', 'clean', 'candidate', 'restored', 'discarded'];
+        return (
+          typeof d.version === 'number' &&
+          typeof d.sessionId === 'string' &&
+          d.sessionId.trim().length > 0 &&
+          typeof d.startedAt === 'number' &&
+          typeof d.lastUpdatedAt === 'number' &&
+          typeof d.state === 'string' &&
+          validStates.includes(d.state) &&
+          Array.isArray(d.documents)
+        );
+      },
+    });
+
+    // 11. Document Recovery Snapshot Schema (v1)
+    this.register({
+      schemaId: 'qm.recovery.snapshot',
+      currentVersion: 1,
+      description: 'Temporary durable safety snapshot containing unsaved document content and integrity hash',
+      validate: (data: unknown): data is any => {
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) return false;
+        const d = data as Record<string, any>;
+        const validEndings = ['lf', 'crlf', 'cr'];
+        return (
+          typeof d.version === 'number' &&
+          typeof d.recoveryId === 'string' &&
+          d.recoveryId.trim().length > 0 &&
+          typeof d.sessionId === 'string' &&
+          d.sessionId.trim().length > 0 &&
+          typeof d.documentId === 'string' &&
+          d.documentId.trim().length > 0 &&
+          typeof d.isUntitled === 'boolean' &&
+          typeof d.documentRevision === 'number' &&
+          typeof d.recoveryGeneration === 'number' &&
+          typeof d.content === 'string' &&
+          typeof d.encoding === 'string' &&
+          typeof d.lineEnding === 'string' &&
+          validEndings.includes(d.lineEnding) &&
+          typeof d.checksum === 'string' &&
+          typeof d.createdAt === 'number'
+        );
+      },
+    });
+
+    // 12. Document Recovery Session Schema (v1)
+    this.register({
+      schemaId: 'qm.recovery.session',
+      currentVersion: 1,
+      description: 'Durable active/last application session state pointer for crash detection',
+      validate: (data: unknown): data is any => {
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) return false;
+        const d = data as Record<string, any>;
+        const validStates = ['active', 'clean', 'candidate', 'restored', 'discarded'];
+        return (
+          typeof d.schemaVersion === 'number' &&
+          typeof d.sessionId === 'string' &&
+          d.sessionId.trim().length > 0 &&
+          typeof d.startedAt === 'number' &&
+          typeof d.lastUpdatedAt === 'number' &&
+          typeof d.state === 'string' &&
+          validStates.includes(d.state)
+        );
+      },
+    });
+
+    // 13. Document Local History Manifest Schema (v1)
+    this.register({
+      schemaId: 'qm.history.manifest',
+      currentVersion: 1,
+      description: 'Durable document local history manifest listing historical version snapshots',
+      validate: (data: unknown): data is any => {
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) return false;
+        const d = data as Record<string, any>;
+        return (
+          typeof d.version === 'number' &&
+          typeof d.resourceUri === 'string' &&
+          d.resourceUri.trim().length > 0 &&
+          Array.isArray(d.entries) &&
+          typeof d.lastUpdatedAt === 'number'
+        );
+      },
+    });
+
+    // 14. Document Local History Snapshot Content Schema (v1)
+    this.register({
+      schemaId: 'qm.history.snapshot',
+      currentVersion: 1,
+      description: 'Durable immutable historical document content snapshot with integrity hash',
+      validate: (data: unknown): data is any => {
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) return false;
+        const d = data as Record<string, any>;
+        return (
+          typeof d.version === 'number' &&
+          typeof d.id === 'string' &&
+          d.id.trim().length > 0 &&
+          typeof d.content === 'string' &&
+          typeof d.contentHash === 'string' &&
+          typeof d.createdAt === 'number'
+        );
+      },
+    });
+
+    // 15. Portability Package Manifest Schema (v1)
+    this.register({
+      schemaId: 'qm.portability.manifest',
+      currentVersion: 1,
+      description: 'Portable package manifest identifying version, packageType, domains and integrity',
+      validate: (data: unknown): data is any => {
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) return false;
+        const d = data as Record<string, any>;
+        return (
+          d.format === 'qm-editor-package' &&
+          typeof d.formatVersion === 'number' &&
+          typeof d.packageId === 'string' &&
+          d.packageId.trim().length > 0 &&
+          typeof d.packageType === 'string' &&
+          typeof d.createdAt === 'number' &&
+          Array.isArray(d.domains) &&
+          typeof d.integrity === 'object' &&
+          d.integrity !== null
+        );
+      },
+    });
+
+    // 16. Portability Package Envelope Schema (v1)
+    this.register({
+      schemaId: 'qm.portability.package',
+      currentVersion: 1,
+      description: 'Portable package envelope containing manifest, virtual file tree and integrity checksum',
+      validate: (data: unknown): data is any => {
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) return false;
+        const d = data as Record<string, any>;
+        return (
+          typeof d.manifest === 'object' &&
+          d.manifest !== null &&
+          typeof d.files === 'object' &&
+          d.files !== null &&
+          !Array.isArray(d.files) &&
+          typeof d.checksum === 'string'
+        );
+      },
+    });
   }
 }
 

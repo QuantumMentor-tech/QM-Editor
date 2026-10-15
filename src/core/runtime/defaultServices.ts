@@ -19,6 +19,7 @@ import { taskService } from '../tasks/TaskService';
 import { sourceControlService } from '../source-control/SourceControlService';
 import { workspaceSearchService } from '../../services/WorkspaceSearchService';
 import { workspaceIndexService } from '../../services/WorkspaceIndexService';
+import { globalWorkspaceIndexCoordinator } from '../indexing';
 import { globalWorkspaceEngine, globalWorkspacePersistenceCoordinator } from '../workspace';
 import { globalEditTransactionManager } from '../edit';
 import { globalFileSystemWatcherService, globalResourceSynchronizationService } from '../watcher';
@@ -27,7 +28,7 @@ import { globalDiagnosticService, setupTaskProblemsBridge } from '../diagnostics
 import { globalSymbolService } from '../symbols';
 import { globalDocumentEngine, globalDocumentPersistenceCoordinator } from '../documents';
 import { globalEditorCoordinationService } from '../editor';
-import { globalNavigationCoordinator } from '../navigation';
+import { globalNavigationCoordinator, globalNavigationPersistenceCoordinator } from '../navigation';
 import {
   globalLanguageIntelligenceRegistry,
   globalCompletionCoordinator,
@@ -36,6 +37,9 @@ import {
   globalCodeActionCoordinator,
 } from '../language-intelligence';
 import { globalStorageService } from '../storage';
+import { globalDocumentRecoveryCoordinator } from '../recovery';
+import { globalLocalHistoryCoordinator } from '../local-history';
+import { globalBackupCoordinator } from '../portability';
 import { logger } from '../../utils/logger';
 
 /**
@@ -343,9 +347,22 @@ export function registerDefaultServices(runtime: ApplicationRuntime): void {
     criticality: 'optional',
     dependencies: ['workspace'],
     instance: workspaceIndexService,
-    reset: (service) => {
+    initialize: async () => {
+      const wsId = globalWorkspaceEngine.getWorkspaceId();
+      const primaryRoot = globalWorkspaceEngine.getPrimaryRoot();
+      if (wsId && primaryRoot) {
+        await globalWorkspaceIndexCoordinator.initialize(wsId, primaryRoot.uri);
+      }
+    },
+    reset: async (service) => {
       service.clearIndex();
+      await globalWorkspaceIndexCoordinator.clearIndex();
       logger.info('Runtime: Workspace index cleared on workspace switch');
+    },
+    dispose: async () => {
+      await globalWorkspaceIndexCoordinator.flush();
+      globalWorkspaceIndexCoordinator.dispose();
+      logger.info('Runtime: Workspace index coordinator flushed and disposed');
     },
   });
 
@@ -472,14 +489,19 @@ export function registerDefaultServices(runtime: ApplicationRuntime): void {
     name: 'Canonical Navigation Coordinator',
     scope: 'application',
     criticality: 'critical',
-    dependencies: ['documentEngine', 'editorCoordination'],
+    dependencies: ['storage', 'documentEngine', 'editorCoordination'],
     instance: globalNavigationCoordinator,
-    initialize: () => {
-      logger.info('Runtime: Navigation Coordinator initialized');
+    initialize: async () => {
+      await globalNavigationPersistenceCoordinator.initialize();
+      await RecentDocumentsService.initialize();
+      logger.info('Runtime: Navigation Coordinator & Persistence initialized');
     },
-    dispose: (service) => {
+    dispose: async (service) => {
+      await globalNavigationPersistenceCoordinator.flush();
+      globalNavigationPersistenceCoordinator.dispose();
+      await RecentDocumentsService.flush();
       service.dispose();
-      logger.info('Runtime: Navigation Coordinator disposed');
+      logger.info('Runtime: Navigation Coordinator & Persistence disposed');
     },
   });
 
@@ -569,6 +591,59 @@ export function registerDefaultServices(runtime: ApplicationRuntime): void {
     dispose: (service) => {
       service.dispose();
       logger.info('Runtime: Code Actions Coordinator disposed');
+    },
+  });
+
+  // 25. Document Recovery & Autosave Coordinator (Step 52)
+  runtime.registerService({
+    id: 'documentRecovery',
+    name: 'Document Recovery & Autosave Coordinator',
+    scope: 'application',
+    criticality: 'critical',
+    dependencies: ['storage', 'settings', 'documentEngine'],
+    instance: globalDocumentRecoveryCoordinator,
+    initialize: async () => {
+      await globalDocumentRecoveryCoordinator.initialize();
+      logger.info('Runtime: Document Recovery Coordinator initialized');
+    },
+    dispose: async (service) => {
+      await service.markSessionClean();
+      await service.dispose();
+      logger.info('Runtime: Document Recovery Coordinator marked clean and disposed');
+    },
+  });
+
+  // 26. Document Local History Coordinator (Step 53)
+  runtime.registerService({
+    id: 'localHistory',
+    name: 'Document Local History Coordinator',
+    scope: 'application',
+    criticality: 'optional',
+    dependencies: ['storage', 'settings', 'documentEngine'],
+    instance: globalLocalHistoryCoordinator,
+    initialize: () => {
+      logger.info('Runtime: Document Local History Coordinator initialized');
+    },
+    dispose: async (service) => {
+      await service.dispose();
+      logger.info('Runtime: Document Local History Coordinator disposed');
+    },
+  });
+
+  // 27. Backup & Safe Portability Coordinator (Step 54)
+  runtime.registerService({
+    id: 'backupPortability',
+    name: 'Backup & Safe Data Portability Coordinator',
+    scope: 'application',
+    criticality: 'optional',
+    dependencies: ['storage', 'settings', 'workspaceEngine', 'localHistory'],
+    instance: globalBackupCoordinator,
+    initialize: () => {
+      logger.info('Runtime: Backup & Data Portability Coordinator initialized');
+    },
+    dispose: async (service) => {
+      await service.dispose();
+      logger.info('Runtime: Backup & Data Portability Coordinator disposed');
     },
   });
 }

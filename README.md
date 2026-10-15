@@ -312,6 +312,80 @@
 - **Domain Persistence Repositories:** Typed contracts (`SettingsRepository`, `WorkspaceStateRepository`, `SessionStateRepository`) ensuring UI components and feature modules never touch raw storage keys or adapters directly.
 - **Local-First & Secrets Boundary (`StorageSerializer.ts`):** Strict prohibition of plaintext secrets (passwords, tokens, keys) and live runtime objects (functions, DOM nodes, CodeMirror instances), ensuring zero network egress and full privacy preservation.
 
+### 35. Persistent Workspace Metadata, State, Recent Workspaces & Session Storage (Step 47)
+- **Authoritative Workspace Lifecycle:** Integration of `WorkspaceEngine` with persistent metadata (`qm.workspace.metadata`) and workspace session (`qm.workspace.session`) records.
+- **Generational Protection:** Asynchronous session restorations verify `workspaceGeneration` to eliminate stale cross-workspace contamination.
+- **Bounded Recent Workspaces (`RecentWorkspacesService`):** MRU-ordered, deduplicated tracking of recently opened projects with safe missing folder resilience.
+
+### 36. Document Metadata, Resource State & Persistence Foundation (Step 48)
+- **Persistent Document Metadata (`DocumentMetadataRepository`):** Non-content document characteristics (`languageId`, `encoding`, `lineEnding`, `isReadOnly`, timestamps, file stats) persisted under `qm.document.metadata`.
+- **Resource State Persistence:** Durable tracking of last cursor coordinates and view states without storing raw document text.
+- **Zero Content Storage:** Preserves absolute authority of physical filesystem files for source content while preventing false save reports.
+
+### 37. Persistent Settings, Preferences & Configuration Storage (Step 49)
+- **Hierarchical Settings Engine:** Durable storage integration for User and Workspace settings under `qm.settings.user` and `qm.settings.workspace`.
+- **Precedence & Validation:** Runtime schema validation ensures only approved types and valid ranges are persisted; defaults are retained in memory without redundant storage bloat.
+- **Debounced Coalescing & Clean Flush:** Setting mutations coalesce rapid updates and flush cleanly on application shutdown.
+
+### 38. Persistent Recent Resources, Navigation History & Bounded User Activity State (Step 50)
+- **Production-Grade Recent Resources (`RecentDocumentsService`, `RecentResourceRepository`):** MRU-ordered, deduplicated tracking of recently accessed files/folders across application and workspace scopes under `qm.navigation.recent` (v1) with bounded retention (`MAX_RECENT_DOCUMENTS = 20`).
+- **Durable Navigation History (`NavigationPersistenceCoordinator`, `NavigationHistoryRepository`):** Cross-session persistence of back and forward navigation stacks under `qm.navigation.history` (v1) with bounded capacity (50 locations).
+- **Stale Location Resiliency & Clamping:** Automatically validates file existence (`fileExists`) and clamps coordinate bounds on restore; missing or deleted files are safely skipped without halting restoration.
+- **Resource Lifecycle Synchronization:** Automatic updates of history and recent references on file renames (`handleResourceRenamed`) and pruning on file deletions (`handleResourceDeleted`).
+- **Generational Safety & Isolation:** Enforces strict workspace isolation and generation checks to prevent asynchronous cross-workspace history pollution.
+- **Local-First Privacy & Inert Records:** All activity records are inert metadata structures (URIs, line/column coordinates, timestamps) confined to local storage with zero network telemetry or dynamic script execution.
+
+### 39. Persistent Workspace Indexes, Search Cache & Derived Data Storage (Step 51)
+- **Derived Data Classification & Separation:** Workspace index persistence established under `qm.workspace.index` (v1) with strict architectural separation between authoritative project state (filesystem) and derived acceleration caches.
+- **Warm Startup Acceleration (`WorkspaceIndexCoordinator`, `ResourceIndexRepository`):** Automatically restores verified, fresh workspace indexes upon workspace opening, eliminating redundant filesystem rescans and enabling instant Quick Open (`Ctrl+P`) and Workspace Search (`Ctrl+Shift+F`) candidate discovery.
+- **Freshness & Advisory Fingerprints:** File metadata fingerprints (`computeResourceFingerprint(size, modifiedAt)`) and sample validation detect external file movement or deletions.
+- **Incremental Watcher Synchronization:** Centralized file watcher integration (`ResourceSynchronizationService`) incrementally updates entries on file creations, deletions, renames, and modifications with 300ms debounced persistence.
+- **100% Rebuildability & Self-Healing:** Corrupted, stale, or schema-mismatched indexes are safely quarantined or discarded and cleanly rebuilt from disk without crashing workspace initialization.
+- **Generational Safety & Workspace Isolation:** Restores and rebuilds carry active `workspaceGeneration` tokens, guaranteeing asynchronous completions from superseded workspaces cannot contaminate the active workspace.
+
+### 40. Document Recovery, Autosave & Crash-Safe Unsaved Work Foundation (Step 52)
+- **Production-Grade Recovery Architecture (`DocumentRecoveryCoordinator`, `DocumentRecoveryRepository`):** Provides a crash-safe safety layer for unsaved document content that would otherwise be lost after abnormal application termination. Strictly separated from Local History and persistent undo engines.
+- **Filesystem Authority Superiority:** Recovery snapshots never overwrite real filesystem files automatically. Canonical filesystem content remains the authoritative source of saved truth.
+- **Crash vs Clean Shutdown Detection:** Active runtime session tracking (`qm.recovery.session`, v1) and session manifest tracking (`qm.recovery.manifest`, v1) reliably distinguish clean shutdowns from unexpected process termination.
+- **Debounced Autosave & Write Coalescing:** High-frequency edits are automatically coalesced and debounced (default 1000ms delay, configurable via `files.autoSaveDelay`), triggering a single atomic snapshot write per quiet period without disk thrashing.
+- **Monotonic Generation Race Protection:** Snapshots carry monotonic recovery generations, guaranteeing that older asynchronous writes cannot overwrite newer snapshot state.
+- **Base Metadata & Conflict Detection:** Recovery snapshots store base filesystem fingerprints (size, modified time). If a disk file is modified externally after the snapshot, candidate evaluation flags a `conflict` and prevents silent data loss.
+- **Safe Restoration Semantics:** Restoring an existing file loads recovered content through `DocumentEngine.openResource()` and `DocumentEngine.updateText()`, leaving the physical file on disk completely untouched and marking the document as dirty (`isDirty = true`). Manual Save is required to commit recovered content to disk.
+- **Dedicated Untitled Recovery:** Restoring untitled documents uses dedicated untitled identities (`createUntitled()`) without fabricating fake filesystem paths.
+- **Non-Blocking Resilience & Local Privacy:** Storage failures never block or crash user typing or manual saving. Recovery data is strictly local, bounded by quotas (default 50MB), and never transmitted externally or logged in diagnostics.
+
+### 41. Local History, Document Snapshots & Versioned Content Persistence (Step 53)
+- **Production-Grade Local History Architecture (`LocalHistoryCoordinator`, `LocalHistoryRepository`):** Provides a durable, bounded, local-only historical record of document content states surviving application restarts. Strictly partitioned from Step 52 Recovery, native Undo/Redo, Autosave, and Git version control.
+- **Inviolable Filesystem Authority:** Restoring historical snapshots operates purely in memory through `DocumentEngine.applyTransaction()`, setting `isDirty = true` and preserving physical disk files untouched until explicitly saved by the user.
+- **Pre-Restore Safety Invariant:** Restoring any historical checkpoint automatically creates a pre-restore safety snapshot (`source: 'preRestore'`), making any accidental restoration immediately recoverable.
+- **Native Undo/Redo Symmetry:** Restoring historical content integrates seamlessly with CodeMirror and `DocumentHistoryService` as an `EditTransaction`, allowing `Ctrl+Z` to undo the restore and `Ctrl+Y` / `Ctrl+Shift+Z` to redo it.
+- **Deterministic Content Hashing & Coalescing:** Snapshots use cryptographic SHA-256 checksums to verify integrity upon read. Consecutive saves of identical content are coalesced and suppressed to eliminate redundant storage.
+- **Bounded Retention & Quota Management:** Enforces configurable entry limits (`history.maxEntriesPerFile`, default: 50), age limits (`history.retentionDays`, default: 30), and storage caps (`history.maxStorageBytes`, default: 100MB) with automatic background pruning of expired versions.
+- **Rich User Interface (`LocalHistoryModal`):** Split-pane modal dialog (`Ctrl+Alt+H`) offering chronological version listing, source badges (Save, Manual, Pre-Restore), live diff inspection, individual entry deletion, and safe restoration.
+- **Non-Blocking Resilience & Strict Privacy:** History writes never block typing or manual saving. History records remain strictly local with zero cloud sync, zero telemetry, and zero AI/LLM data exposure.
+
+### 42. Application Backup, Export, Import & Safe Data Portability (Step 54)
+- **Production-Grade Backup & Portability (`BackupCoordinator`, `PackageValidator`, `PackageMigrator`):** Provides a robust, local-first system for safety backups, selective exports, untrusted package imports, and disaster recovery.
+- **Strict Concept Separation:** Clearly distinguishes Backup (disaster preservation), Export (portable representation), Import (staging & untrusted validation), and Restore (applying validated state with explicit user confirmation).
+- **Inviolable Filesystem Authority:** Preserves QM Editor configuration, workspace definitions, settings, and optionally Local History, without silently duplicating or modifying external project source code.
+- **Step 52 & 53 Isolation:** Active recovery snapshots are excluded from routine packages and never injected into active recovery sessions. Local History is conditionally portable, and importing history never forces active document replacements.
+- **Untrusted Package Sandbox & Security Boundary:** Packages are staged before application. Enforces strict protection against archive path traversal (`../`, `..\`, absolute paths, drive letters, UNC paths), archive bombs (entry count and size limits), and invalid payloads outside approved domain namespaces.
+- **Secret & Credential Exclusion:** Proactively scans and strips sensitive keys (passwords, API keys, client secrets, auth tokens) before serialization or export.
+- **Rebuildable Derived Data Policy:** Search indexes and resource index caches are omitted from portable packages and automatically invalidated upon restore to force clean rebuilding.
+- **Pre-Restore Safety Backups:** Automatically captures a safety backup of current application state before applying destructive restore operations, guaranteeing full reversibility.
+- **Controlled Import Strategies & Plans:** Generates detailed Import Plans highlighting affected domains and conflicts, offering user-controlled `merge`, `replace`, and `skip` resolution strategies.
+- **Accessible User Interface (`BackupPortabilityModal`):** Complete modal interface (`Ctrl+Alt+B`) with dedicated tabs for creating backups, importing/restoring packages, inspecting conflicts, and viewing historical safety backups.
+
+### 43. Data & Storage Architecture Integration, Hardening & Phase 05 Completion Audit (Step 55)
+- **Phase 05 Architectural Integration & Hardening Audit:** Comprehensive engineering verification, cross-domain authority validation, and resilience audit across all Phase 05 persistence subsystems (Steps 46–54).
+- **Unidirectional Persistence Hierarchy & Authority Boundaries:** Enforces strict, unambiguous authority per domain (`DocumentEngine` for file content, `WorkspaceStateRepository` for workspace tree/UI, `SessionStateRepository` for tab/layout/cursor state, `SettingsStorageService` for configuration, `LocalHistoryCoordinator` for version snapshots, `DocumentRecoveryCoordinator` for crash candidates, and `BackupCoordinator` for portability packages).
+- **Zero Cross-Domain Mutation or Contamination:** Proves that Local History restoration never writes directly to disk, Recovery evaluation never overwrites dirty buffers without user confirmation, Backup/Export never alters dirty flags or active session state, and clearing history never touches recovery or settings.
+- **Rigorous Schema Governance:** All 16 Phase 05 data schemas registered and validated with version `1` via `SchemaRegistry` and `MigrationRegistry`, preventing schema drift and guaranteeing forward/backward migration guardrails.
+- **Concurrency & Monotonic Revision Guardrails:** Optimistic concurrency control across storage repositories using monotonic `recordVersion` tracking, immediately rejecting stale concurrent writes with `StorageConcurrencyConflictError`.
+- **Degraded Mode & Read-Only Resilience:** Storage subsystem degradation or read-only storage states (`StorageReadOnlyError`) degrade gracefully into in-memory operations, ensuring typing and editing are never blocked or crashed.
+- **Comprehensive Integration Audit Test Suite (`Phase05IntegrationAudit.test.ts`):** 10 exhaustive integration test suites verifying the full 20-step application lifecycle, authority invariant protections, workspace isolation, degraded mode resiliency, path traversal defenses, and safe package restoration.
+- **Formal Phase 05 Completion:** Hard stop at Step 55, successfully closing Phase 05 (Data & Storage Architecture) with 104 test suites passing (776 tests), 0 TypeScript errors, and 0 bundle build warnings.
+
 ## 🛠️ Technology Stack
 
 - **Framework:** React 18, Vite 6

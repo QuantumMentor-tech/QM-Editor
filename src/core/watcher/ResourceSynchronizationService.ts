@@ -16,7 +16,6 @@ import { globalWorkspaceEngine } from '../workspace';
 import { normalizeWorkspacePath, isResourceInRoot } from '../workspace/WorkspaceResourceBoundary';
 import { fileService } from '../../services/FileService';
 import { globalFeedbackService } from '../feedback/FeedbackService';
-import { workspaceIndexService } from '../../services/WorkspaceIndexService';
 import { SaveCorrelationManager } from './SaveCorrelationManager';
 import { globalDocumentHistoryService } from '../history';
 import { logger } from '../../utils/logger';
@@ -214,9 +213,7 @@ export class ResourceSynchronizationService {
         return;
 
       case 'unopened_resource': {
-        // Invalidate / update workspace search & indexing
-        workspaceIndexService.clearIndex();
-
+        // Step 51: Incremental workspace index updates via externalChangeDetected event
         await this.emit('watcher.externalChangeDetected', {
           uri: classified.uri,
           type: classified.type,

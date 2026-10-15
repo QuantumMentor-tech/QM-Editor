@@ -539,6 +539,55 @@ export class SettingsRegistry {
     });
 
     this.register({
+      key: 'files.autoSaveDelay',
+      title: 'Auto Save Delay',
+      description: 'Delay in milliseconds after editing before autosave or recovery snapshotting triggers.',
+      category: 'Files',
+      type: 'number',
+      defaultValue: 1000,
+      scope: 'user',
+      min: 200,
+      max: 30000,
+      step: 100,
+      validate: (v) => ({ valid: typeof v === 'number' && v >= 200 && v <= 30000, error: 'Auto save delay must be between 200ms and 30000ms' }),
+    });
+
+    this.register({
+      key: 'files.recoveryEnabled',
+      title: 'Crash-Safe Document Recovery',
+      description: 'Enables automatic temporary durable safety snapshotting for dirty documents.',
+      category: 'Files',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'files.recoveryRetentionMinutes',
+      title: 'Recovery Snapshot Retention Period',
+      description: 'Number of minutes to retain unrecovered safety snapshots before automatic pruning.',
+      category: 'Files',
+      type: 'number',
+      defaultValue: 1440,
+      scope: 'user',
+      min: 60,
+      max: 10080,
+      step: 60,
+    });
+
+    this.register({
+      key: 'files.recoveryMaxStorageBytes',
+      title: 'Max Recovery Storage Quota',
+      description: 'Maximum disk storage bytes permitted for temporary recovery snapshots.',
+      category: 'Files',
+      type: 'number',
+      defaultValue: 52428800, // 50MB
+      scope: 'user',
+      min: 1048576, // 1MB
+      max: 524288000, // 500MB
+    });
+
+    this.register({
       key: 'files.trimTrailingWhitespace',
       title: 'Trim Trailing Whitespace',
       description: 'Automatically trim trailing whitespace on line endings upon saving.',
@@ -546,6 +595,53 @@ export class SettingsRegistry {
       type: 'boolean',
       defaultValue: false,
       scope: 'user',
+    });
+
+    this.register({
+      key: 'history.enabled',
+      title: 'Enable Local History',
+      description: 'Automatically retain versioned historical content snapshots upon saving.',
+      category: 'Files',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'history.maxEntriesPerFile',
+      title: 'Local History Max Versions Per File',
+      description: 'Maximum number of historical snapshots retained for each document.',
+      category: 'Files',
+      type: 'number',
+      defaultValue: 50,
+      scope: 'user',
+      min: 5,
+      max: 200,
+      step: 5,
+    });
+
+    this.register({
+      key: 'history.retentionDays',
+      title: 'Local History Retention (Days)',
+      description: 'Number of days to keep historical document snapshots before automatic eviction.',
+      category: 'Files',
+      type: 'number',
+      defaultValue: 30,
+      scope: 'user',
+      min: 1,
+      max: 365,
+    });
+
+    this.register({
+      key: 'history.maxStorageBytes',
+      title: 'Local History Max Storage Quota',
+      description: 'Maximum storage bytes allocated for document version snapshots.',
+      category: 'Files',
+      type: 'number',
+      defaultValue: 104857600, // 100MB
+      scope: 'user',
+      min: 10485760, // 10MB
+      max: 1073741824, // 1GB
     });
 
     // -------------------------------------------------------------
@@ -582,6 +678,41 @@ export class SettingsRegistry {
       title: 'Screen Reader Optimizations',
       description: 'Provides expanded aria labels and textual descriptions across controls.',
       category: 'Accessibility',
+      type: 'boolean',
+      defaultValue: false,
+      scope: 'user',
+    });
+
+    // -------------------------------------------------------------
+    // 9. BACKUP & PORTABILITY (Step 54)
+    // -------------------------------------------------------------
+    this.register({
+      key: 'backup.autoBackupEnabled',
+      title: 'Periodic Backup',
+      description: 'Automatically creates local backups of application configuration and state.',
+      category: 'Files',
+      type: 'boolean',
+      defaultValue: false,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'backup.maxBackupCount',
+      title: 'Maximum Retained Backups',
+      description: 'Maximum number of safety backups to retain before pruning oldest copies.',
+      category: 'Files',
+      type: 'number',
+      defaultValue: 10,
+      scope: 'user',
+      min: 1,
+      max: 50,
+    });
+
+    this.register({
+      key: 'backup.includeLocalHistory',
+      title: 'Include Local History In Backups',
+      description: 'Controls whether full application backups automatically bundle Document Local History snapshots.',
+      category: 'Files',
       type: 'boolean',
       defaultValue: false,
       scope: 'user',
