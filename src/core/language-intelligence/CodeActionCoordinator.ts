@@ -19,6 +19,7 @@ import { Range } from '../navigation/LocationTypes';
 import { CancellationToken } from '../symbols/SymbolTypes';
 import { CancellationTokenSource } from '../symbols/CancellationToken';
 import { globalDocumentEngine, DocumentEngine } from '../documents/DocumentEngine';
+import { normalizeResourceUri } from '../documents/ResourceIdentity';
 import { globalEditorCoordinationService, EditorCoordinationService } from '../editor';
 import { globalWorkspaceEngine } from '../workspace';
 import { fileService } from '../../services/FileService';
@@ -577,13 +578,22 @@ export class CodeActionCoordinator {
    */
   private findDocumentByUri(uri: string) {
     const norm = uri.toLowerCase();
+    const normalizedTarget = normalizeResourceUri(uri).toLowerCase();
     const allDocs = this.docEngine.getAllDocuments();
-    return allDocs.find(
-      (d) =>
-        d.resourceUri.toLowerCase() === norm ||
-        d.id.toLowerCase() === norm ||
-        d.title.toLowerCase() === norm
-    );
+    return allDocs.find((d) => {
+      const dNorm = d.resourceUri.toLowerCase();
+      if (dNorm === norm || dNorm === normalizedTarget) return true;
+      if (d.filePath) {
+        const fpNorm = d.filePath.toLowerCase();
+        if (
+          fpNorm === norm ||
+          fpNorm.replace(/\\/g, '/') === norm.replace(/\\/g, '/')
+        ) {
+          return true;
+        }
+      }
+      return d.id.toLowerCase() === norm || d.title.toLowerCase() === norm;
+    });
   }
 
   public dispose(): void {

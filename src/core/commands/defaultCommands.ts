@@ -3,6 +3,8 @@ import { globalFocusManager } from '../accessibility/FocusManager';
 import { globalEditorCoordinationService } from '../editor';
 import { globalLocalHistoryCoordinator } from '../local-history';
 import { globalDocumentEngine } from '../documents';
+import { globalLspCoordinator } from '../lsp';
+import { globalFeedbackService } from '../feedback/FeedbackService';
 
 export const defaultCommands: Command[] = [
   {
@@ -297,6 +299,81 @@ export const defaultCommands: Command[] = [
     canExecute: (ctx) => Boolean(ctx.activeDoc),
     execute: () => {
       window.dispatchEvent(new CustomEvent('qm:editor:quickfix'));
+    },
+  },
+  {
+    id: 'editor.action.goToDefinition',
+    label: 'Go to Definition',
+    category: 'editor',
+    shortcut: 'F12',
+    description: 'Navigate to the definition of the symbol under cursor',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(new CustomEvent('qm:editor:gotodefinition'));
+    },
+  },
+  {
+    id: 'editor.action.goToDeclaration',
+    label: 'Go to Declaration',
+    category: 'editor',
+    description: 'Navigate to the declaration of the symbol under cursor',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(new CustomEvent('qm:editor:gotodeclaration'));
+    },
+  },
+  {
+    id: 'editor.action.goToTypeDefinition',
+    label: 'Go to Type Definition',
+    category: 'editor',
+    description: 'Navigate to the type definition of the symbol under cursor',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(new CustomEvent('qm:editor:gototypedefinition'));
+    },
+  },
+  {
+    id: 'editor.action.findReferences',
+    label: 'Find References',
+    category: 'editor',
+    shortcut: 'Shift+F12',
+    description: 'Find all references to the symbol under cursor',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(new CustomEvent('qm:editor:findreferences'));
+    },
+  },
+  {
+    id: 'editor.action.rename',
+    label: 'Rename Symbol',
+    category: 'editor',
+    shortcut: 'F2',
+    description: 'Rename the symbol under cursor across all referencing files',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(new CustomEvent('qm:editor:rename'));
+    },
+  },
+  {
+    id: 'editor.action.formatDocument',
+    label: 'Format Document',
+    category: 'editor',
+    shortcut: 'Shift+Alt+F',
+    description: 'Format the entire active document using the configured language formatter',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(new CustomEvent('qm:editor:formatdocument'));
+    },
+  },
+  {
+    id: 'editor.action.formatSelection',
+    label: 'Format Selection',
+    category: 'editor',
+    shortcut: 'Mod+K Mod+F',
+    description: 'Format the currently selected range in the active document',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(new CustomEvent('qm:editor:formatselection'));
     },
   },
   {
@@ -1099,6 +1176,46 @@ export const defaultCommands: Command[] = [
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('qm-open-backup-modal', { detail: { tab: 'import' } }));
       }
+    },
+  },
+  {
+    id: 'languageServer.restart',
+    label: 'Language Server: Restart Active Server',
+    category: 'editor',
+    description: 'Restarts the active Language Server Protocol process for the current document',
+    canExecute: () => true,
+    execute: async (ctx) => {
+      const activeDocId = ctx.activeDoc?.id;
+      if (!activeDocId) {
+        globalFeedbackService.showInfo('No active document to restart language server for.');
+        return;
+      }
+      const doc = globalDocumentEngine.getDocument(activeDocId);
+      if (!doc) return;
+
+      const session = globalLspCoordinator.serverManager.getActiveSession(doc.languageId, doc.workspaceId);
+      if (session) {
+        await session.restart();
+        globalFeedbackService.showSuccess(`Restarted language server for ${doc.languageId}.`);
+      } else {
+        globalFeedbackService.showInfo(`No running language server found for ${doc.languageId}.`);
+      }
+    },
+  },
+  {
+    id: 'languageServer.showStatus',
+    label: 'Language Server: Show Status Overview',
+    category: 'editor',
+    description: 'Displays health, capabilities, and session diagnostics for language servers',
+    canExecute: () => true,
+    execute: async () => {
+      const statuses = globalLspCoordinator.getStatusOverview();
+      if (statuses.length === 0) {
+        globalFeedbackService.showInfo('No language servers are currently running.');
+        return;
+      }
+      const summary = statuses.map((s) => `${s.displayName}: ${s.health.toUpperCase()} (${s.trackedDocumentCount} doc(s))`).join(' | ');
+      globalFeedbackService.showInfo(`Language Servers: ${summary}`);
     },
   },
 ];

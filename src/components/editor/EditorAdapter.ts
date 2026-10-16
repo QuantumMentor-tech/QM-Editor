@@ -36,6 +36,7 @@ import { ThemeMode, EditorSettings } from '../../types';
 import { DEFAULT_EDITOR_SETTINGS } from '../../services/PreferencesService';
 import { Diagnostic } from '../../core/diagnostics/DiagnosticTypes';
 import { rangeToCharacterOffsets } from '../../core/diagnostics/DiagnosticValidation';
+import { Range } from '../../core/navigation/LocationTypes';
 
 export interface MatchRange {
   from: number;
@@ -594,6 +595,20 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
     const mainSel = this.view.state.selection.main;
     if (mainSel.empty) return '';
     return this.view.state.sliceDoc(mainSel.from, mainSel.to);
+  }
+
+  public getSelectionRange(): Range | null {
+    if (!this.view) return null;
+    const main = this.view.state.selection.main;
+    if (main.empty) return null;
+    const fromLine = this.view.state.doc.lineAt(main.from);
+    const toLine = this.view.state.doc.lineAt(main.to);
+    return {
+      startLine: fromLine.number,
+      startColumn: main.from - fromLine.from + 1,
+      endLine: toLine.number,
+      endColumn: main.to - toLine.from + 1,
+    };
   }
 
   public applyEdits(changes: Array<{ from: number; to: number; insert: string }>): void {

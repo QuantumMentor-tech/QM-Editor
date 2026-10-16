@@ -18,6 +18,7 @@ import { globalEditorCoordinationService, EditorCoordinationService } from '../e
 import { globalLanguageRegistry } from '../languageRegistry';
 import { globalWorkspaceEngine } from '../workspace';
 import { CancellationTokenSource } from '../symbols/CancellationToken';
+import { CancellationToken } from '../symbols/SymbolTypes';
 import { Range, Position } from '../navigation/LocationTypes';
 import { logger } from '../../utils/logger';
 
@@ -375,6 +376,33 @@ export class CompletionCoordinator {
       newRevision: result.newRevision,
       reason: 'applied',
     };
+  }
+
+  /**
+   * Resolves additional details/documentation for a completion item lazily from its provider.
+   */
+  public async resolveCompletionItem(
+    item: CompletionItem,
+    token?: CancellationToken
+  ): Promise<CompletionItem> {
+    if (this.isDisposed || !item || !item.providerId) {
+      return item;
+    }
+
+    const provider = this.registry.getProvider(item.providerId);
+    if (!provider || !provider.resolveCompletionItem) {
+      return item;
+    }
+
+    try {
+      return await provider.resolveCompletionItem(item, token);
+    } catch (err) {
+      logger.debug('CompletionCoordinator: resolveCompletionItem failed', {
+        providerId: item.providerId,
+        error: (err as Error).message,
+      });
+      return item;
+    }
   }
 
   public cancelActiveRequest(): void {

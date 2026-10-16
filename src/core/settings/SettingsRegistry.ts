@@ -717,6 +717,242 @@ export class SettingsRegistry {
       defaultValue: false,
       scope: 'user',
     });
+
+    // -------------------------------------------------------------
+    // 10. LANGUAGE SERVER PROTOCOL (Step 56)
+    // -------------------------------------------------------------
+    this.register({
+      key: 'lsp.enabled',
+      title: 'Enable Language Server Protocol',
+      description: 'Enables external Language Server Protocol (LSP) integrations for code intelligence.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.trace',
+      title: 'LSP Protocol Tracing',
+      description: 'Traces JSON-RPC communication between QM Editor and language servers.',
+      category: 'Editor',
+      type: 'string',
+      defaultValue: 'off',
+      options: [
+        { label: 'Off', value: 'off', description: 'Disable protocol tracing' },
+        { label: 'Messages', value: 'messages', description: 'Trace request and notification method names' },
+        { label: 'Verbose', value: 'verbose', description: 'Trace messages with full sanitized payloads' },
+      ],
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.autoRestart',
+      title: 'Auto-Restart Language Servers',
+      description: 'Automatically attempts to recover crashed language servers within safe threshold boundaries.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.maxRestartAttempts',
+      title: 'Max LSP Restart Attempts',
+      description: 'Maximum crash count before suppressing automatic language server restarts.',
+      category: 'Editor',
+      type: 'number',
+      defaultValue: 3,
+      scope: 'user',
+      min: 1,
+      max: 10,
+    });
+
+    this.register({
+      key: 'lsp.interactiveTimeoutMs',
+      title: 'LSP Interactive Timeout (ms)',
+      description: 'Timeout in milliseconds for interactive editor LSP requests (completion, hover, signature help).',
+      category: 'Editor',
+      type: 'number',
+      defaultValue: 5000,
+      scope: 'user',
+      min: 1000,
+      max: 30000,
+    });
+
+    this.register({
+      key: 'lsp.diagnostics.enabled',
+      title: 'Enable LSP Diagnostics',
+      description: 'Enables diagnostic reporting from Language Server Protocol providers into Problems and editor markers.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.diagnostics.showHints',
+      title: 'Show LSP Hints',
+      description: 'Controls whether hint-level diagnostics from language servers are surfaced in Problems and the editor.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.diagnostics.maxPerDocument',
+      title: 'Max Diagnostics Per Document',
+      description: 'Maximum number of diagnostics retained per document from an LSP provider to protect editor performance.',
+      category: 'Editor',
+      type: 'number',
+      defaultValue: 1000,
+      scope: 'user',
+      min: 10,
+      max: 5000,
+    });
+
+    this.register({
+      key: 'lsp.completion.enabled',
+      title: 'Enable LSP Completion',
+      description: 'Enables code completion suggestions from Language Server Protocol servers.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.completion.maxItems',
+      title: 'Max LSP Completion Items',
+      description: 'Maximum number of completion suggestions processed from a language server response to protect editor performance.',
+      category: 'Editor',
+      type: 'number',
+      defaultValue: 500,
+      scope: 'user',
+      min: 10,
+      max: 2000,
+    });
+
+    this.register({
+      key: 'lsp.hover.enabled',
+      title: 'Enable LSP Hover',
+      description: 'Enables contextual hover information and documentation from Language Server Protocol servers.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.signatureHelp.enabled',
+      title: 'Enable LSP Signature Help',
+      description: 'Enables contextual parameter hints and signature help from Language Server Protocol servers.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.navigation.enabled',
+      title: 'Enable LSP Code Navigation',
+      description: 'Enables code navigation, definitions, declarations, type definitions, and references via Language Server Protocol servers.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.workspaceSymbols.enabled',
+      title: 'Enable LSP Workspace Symbols',
+      description: 'Enables cross-file semantic symbol search via Language Server Protocol servers.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.workspaceSymbols.allowEmptyQueries',
+      title: 'Allow Empty LSP Workspace Symbol Queries',
+      description: 'Allows requesting workspace symbols with an empty query string if the language server supports it.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: false,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.workspaceSymbols.maxResults',
+      title: 'Maximum LSP Workspace Symbols',
+      description: 'Maximum number of workspace symbols returned and rendered from language servers.',
+      category: 'Editor',
+      type: 'number',
+      defaultValue: 1000,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.rename.enabled',
+      title: 'Enable LSP Rename',
+      description: 'Enables semantic symbol renaming via Language Server Protocol servers.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.formatting.enabled',
+      title: 'Enable LSP Formatting',
+      description: 'Enables document and selection/range formatting via Language Server Protocol servers.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.formatting.formatOnSave',
+      title: 'Format On Save',
+      description: 'Automatically format documents when saving if a formatter is available.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: false,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.formatting.trimTrailingWhitespace',
+      title: 'Trim Trailing Whitespace on Format',
+      description: 'Instructs the formatter to trim trailing whitespace on lines.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: false,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.formatting.insertFinalNewline',
+      title: 'Insert Final Newline on Format',
+      description: 'Instructs the formatter to ensure the document ends with a newline.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: false,
+      scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.formatting.trimFinalNewlines',
+      title: 'Trim Final Newlines on Format',
+      description: 'Instructs the formatter to trim any superfluous newlines at the end of the document.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: false,
+      scope: 'user',
+    });
   }
 }
 

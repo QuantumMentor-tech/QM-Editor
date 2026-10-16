@@ -40,6 +40,7 @@ import { globalStorageService } from '../storage';
 import { globalDocumentRecoveryCoordinator } from '../recovery';
 import { globalLocalHistoryCoordinator } from '../local-history';
 import { globalBackupCoordinator } from '../portability';
+import { globalLspCoordinator } from '../lsp';
 import { logger } from '../../utils/logger';
 
 /**
@@ -644,6 +645,24 @@ export function registerDefaultServices(runtime: ApplicationRuntime): void {
     dispose: async (service) => {
       await service.dispose();
       logger.info('Runtime: Backup & Data Portability Coordinator disposed');
+    },
+  });
+
+  // 28. Language Server Protocol (LSP) Coordinator (Step 56)
+  runtime.registerService({
+    id: 'lsp',
+    name: 'Language Server Protocol Coordinator',
+    scope: 'application',
+    criticality: 'optional',
+    dependencies: ['settings', 'documentEngine', 'languageIntelligence', 'diagnostics'],
+    instance: globalLspCoordinator,
+    initialize: async () => {
+      await globalLspCoordinator.initialize();
+      logger.info('Runtime: Language Server Protocol Coordinator initialized');
+    },
+    dispose: async (service) => {
+      await service.dispose();
+      logger.info('Runtime: Language Server Protocol Coordinator disposed');
     },
   });
 }

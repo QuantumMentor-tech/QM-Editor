@@ -9,6 +9,8 @@ import { HoverWidget } from './HoverWidget';
 import { SignatureHelpWidget } from './SignatureHelpWidget';
 import { CodeActionWidget } from './CodeActionWidget';
 import { CodeActionPreviewModal } from './CodeActionPreviewModal';
+import { ReferencesModal } from '../navigation/ReferencesModal';
+import { RenameModal } from '../rename/RenameModal';
 import { useNavigation } from '../../state/NavigationContext';
 import { useContextMenu } from '../../state/ContextMenuContext';
 import { globalFocusManager } from '../../core/accessibility/FocusManager';
@@ -18,6 +20,12 @@ import { globalCompletionCoordinator } from '../../core/language-intelligence/Co
 import { globalHoverCoordinator } from '../../core/language-intelligence/HoverCoordinator';
 import { globalSignatureHelpCoordinator } from '../../core/language-intelligence/SignatureHelpCoordinator';
 import { globalCodeActionCoordinator } from '../../core/language-intelligence/CodeActionCoordinator';
+import { globalLspNavigationCoordinator } from '../../core/lsp/navigation/LspNavigationCoordinator';
+import { globalLspRenameCoordinator } from '../../core/lsp/rename/LspRenameCoordinator';
+import { globalLspFormattingCoordinator } from '../../core/lsp/formatting/LspFormattingCoordinator';
+import { globalFeedbackService } from '../../core/feedback/FeedbackService';
+import { ReferenceResult } from '../../core/lsp/navigation/LspNavigationTypes';
+import { Location, Range } from '../../core/navigation/LocationTypes';
 import { globalWorkspaceEngine } from '../../core/workspace';
 import {
   CompletionItem,
@@ -69,6 +77,21 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
   const [codeActionPos, setCodeActionPos] = useState<{ x: number; y: number }>({ x: 100, y: 100 });
   const [previewData, setPreviewData] = useState<CodeActionPreview | null>(null);
   const [pendingActionToApply, setPendingActionToApply] = useState<CodeAction | null>(null);
+
+  // Code Navigation & References State (Step 60)
+  const [referencesModalData, setReferencesModalData] = useState<{
+    title: string;
+    result?: ReferenceResult | null;
+    locations?: Location[];
+  } | null>(null);
+
+  // LSP Rename State (Step 62)
+  const [renameModalData, setRenameModalData] = useState<{
+    currentName: string;
+    range: Range;
+    line: number;
+    column: number;
+  } | null>(null);
 
   const docIdRef = useRef<string>(document.id);
   docIdRef.current = document.id;
@@ -389,6 +412,161 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
     };
   }, []);
 
+  // Listen for Code Navigation command events (Step 60)
+  useEffect(() => {
+    const handleGoToDefinition = async () => {
+      if (!adapterRef.current) return;
+      const cursor = adapterRef.current.getCursorPosition();
+      const docUri = docFilePathRef.current || `untitled:${docIdRef.current}`;
+      const lang = document.language || 'plaintext';
+      const wsId = globalWorkspaceEngine.getWorkspaceId() || undefined;
+
+      await globalLspNavigationCoordinator.goToDefinition(
+        docIdRef.current,
+        cursor,
+        docUri,
+        lang,
+        document.contentRevision,
+        wsId
+      );
+    };
+
+    const handleGoToDeclaration = async () => {
+      if (!adapterRef.current) return;
+      const cursor = adapterRef.current.getCursorPosition();
+      const docUri = docFilePathRef.current || `untitled:${docIdRef.current}`;
+      const lang = document.language || 'plaintext';
+      const wsId = globalWorkspaceEngine.getWorkspaceId() || undefined;
+
+      await globalLspNavigationCoordinator.goToDeclaration(
+        docIdRef.current,
+        cursor,
+        docUri,
+        lang,
+        document.contentRevision,
+        wsId
+      );
+    };
+
+    const handleGoToTypeDefinition = async () => {
+      if (!adapterRef.current) return;
+      const cursor = adapterRef.current.getCursorPosition();
+      const docUri = docFilePathRef.current || `untitled:${docIdRef.current}`;
+      const lang = document.language || 'plaintext';
+      const wsId = globalWorkspaceEngine.getWorkspaceId() || undefined;
+
+      await globalLspNavigationCoordinator.goToTypeDefinition(
+        docIdRef.current,
+        cursor,
+        docUri,
+        lang,
+        document.contentRevision,
+        wsId
+      );
+    };
+
+    const handleFindReferences = async () => {
+      if (!adapterRef.current) return;
+      const cursor = adapterRef.current.getCursorPosition();
+      const docUri = docFilePathRef.current || `untitled:${docIdRef.current}`;
+      const lang = document.language || 'plaintext';
+      const wsId = globalWorkspaceEngine.getWorkspaceId() || undefined;
+
+      await globalLspNavigationCoordinator.findReferences(
+        docIdRef.current,
+        cursor,
+        docUri,
+        lang,
+        document.contentRevision,
+        wsId,
+        true
+      );
+    };
+
+    const handleMultiTargets = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setReferencesModalData({
+        title: customEvent.detail.title || 'Multiple Definitions',
+        locations: customEvent.detail.locations,
+      });
+    };
+
+    const handleRefs = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setReferencesModalData({
+        title: `References (${customEvent.detail.totalCount})`,
+        result: customEvent.detail,
+      });
+    };
+
+    const handleRename = async () => {
+      if (!adapterRef.current) return;
+      const cursor = adapterRef.current.getCursorPosition();
+      const docUri = docFilePathRef.current || `untitled:${docIdRef.current}`;
+
+      const prepRes = await globalLspRenameCoordinator.prepareRename({
+        requestId: `prep-${Date.now()}`,
+        workspaceId: globalWorkspaceEngine.getWorkspaceId() || 'default-workspace',
+        workspaceGeneration: globalWorkspaceEngine.getGeneration(),
+        documentId: docIdRef.current,
+        resourceUri: docUri,
+        documentRevision: document.contentRevision,
+        line: cursor.line,
+        column: cursor.column,
+        languageId: document.language || 'plaintext',
+      });
+
+      if (!prepRes.valid || !prepRes.value) {
+        globalFeedbackService.showInfo(prepRes.error || 'You cannot rename this element.');
+        return;
+      }
+
+      setRenameModalData({
+        currentName: prepRes.value.placeholder,
+        range: prepRes.value.range,
+        line: cursor.line,
+        column: cursor.column,
+      });
+    };
+
+    const handleFormatDocument = async () => {
+      if (!adapterRef.current) return;
+      await globalLspFormattingCoordinator.formatDocument(docIdRef.current);
+    };
+
+    const handleFormatSelection = async () => {
+      if (!adapterRef.current) return;
+      const selRange = adapterRef.current.getSelectionRange();
+      if (!selRange) {
+        globalFeedbackService.showInfo('No text selected to format. Select code or use Format Document.');
+        return;
+      }
+      await globalLspFormattingCoordinator.formatRange(docIdRef.current, selRange);
+    };
+
+    window.addEventListener('qm:editor:gotodefinition', handleGoToDefinition);
+    window.addEventListener('qm:editor:gotodeclaration', handleGoToDeclaration);
+    window.addEventListener('qm:editor:gototypedefinition', handleGoToTypeDefinition);
+    window.addEventListener('qm:editor:findreferences', handleFindReferences);
+    window.addEventListener('qm:editor:rename', handleRename);
+    window.addEventListener('qm:editor:formatdocument', handleFormatDocument);
+    window.addEventListener('qm:editor:formatselection', handleFormatSelection);
+    window.addEventListener('qm:navigation:multiple-targets', handleMultiTargets);
+    window.addEventListener('qm:navigation:references', handleRefs);
+
+    return () => {
+      window.removeEventListener('qm:editor:gotodefinition', handleGoToDefinition);
+      window.removeEventListener('qm:editor:gotodeclaration', handleGoToDeclaration);
+      window.removeEventListener('qm:editor:gototypedefinition', handleGoToTypeDefinition);
+      window.removeEventListener('qm:editor:findreferences', handleFindReferences);
+      window.removeEventListener('qm:editor:rename', handleRename);
+      window.removeEventListener('qm:editor:formatdocument', handleFormatDocument);
+      window.removeEventListener('qm:editor:formatselection', handleFormatSelection);
+      window.removeEventListener('qm:navigation:multiple-targets', handleMultiTargets);
+      window.removeEventListener('qm:navigation:references', handleRefs);
+    };
+  }, [document.language, document.contentRevision]);
+
   // Code Action Execution & Preview Handlers (Step 44)
   const triggerCodeActions = useCallback(
     async (triggerKind: CodeActionTriggerKind = 'invoked') => {
@@ -461,6 +639,30 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
       });
     }
   }, [pendingActionToApply, document.contentRevision]);
+
+  const handleExecuteRename = useCallback(
+    async (newName: string) => {
+      if (!renameModalData) return;
+      const docUri = docFilePathRef.current || `untitled:${docIdRef.current}`;
+
+      await globalLspRenameCoordinator.executeRename(
+        {
+          requestId: `rename-${Date.now()}`,
+          workspaceId: globalWorkspaceEngine.getWorkspaceId() || 'default-workspace',
+          workspaceGeneration: globalWorkspaceEngine.getGeneration(),
+          documentId: docIdRef.current,
+          resourceUri: docUri,
+          documentRevision: document.contentRevision,
+          line: renameModalData.line,
+          column: renameModalData.column,
+          newName,
+          languageId: document.language || 'plaintext',
+        },
+        renameModalData.currentName
+      );
+    },
+    [renameModalData, document.contentRevision, document.language]
+  );
 
   // Listen for manual trigger code action / quick fix command event (Step 44)
   useEffect(() => {
@@ -678,6 +880,27 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
             setPreviewData(null);
             setPendingActionToApply(null);
           }}
+        />
+      )}
+
+      {/* Code Navigation & References Modal (Step 60) */}
+      {referencesModalData && (
+        <ReferencesModal
+          title={referencesModalData.title}
+          result={referencesModalData.result}
+          locations={referencesModalData.locations}
+          onClose={() => setReferencesModalData(null)}
+        />
+      )}
+
+      {/* LSP Rename Modal (Step 62) */}
+      {renameModalData && (
+        <RenameModal
+          isOpen={Boolean(renameModalData)}
+          currentName={renameModalData.currentName}
+          range={renameModalData.range}
+          onRename={handleExecuteRename}
+          onClose={() => setRenameModalData(null)}
         />
       )}
 

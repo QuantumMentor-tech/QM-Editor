@@ -132,6 +132,10 @@ export interface CompletionItem {
   providerId?: string;
   /** Priority score derived from provider */
   priority?: number;
+  /** Optional commit characters that automatically accept and insert this item */
+  commitCharacters?: string[];
+  /** Optional opaque payload or raw provider item data (used for resolve) */
+  data?: unknown;
 }
 
 /**

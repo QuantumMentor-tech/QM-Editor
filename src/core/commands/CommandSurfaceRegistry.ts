@@ -252,6 +252,8 @@ export class CommandSurfaceRegistry {
         { commandId: 'editor.cut', group: 'clipboard', order: 30 },
         { commandId: 'editor.copy', group: 'clipboard', order: 40 },
         { commandId: 'editor.paste', group: 'clipboard', order: 50 },
+        { commandId: 'editor.action.formatDocument', group: 'format', order: 55 },
+        { commandId: 'editor.action.formatSelection', group: 'format', order: 56 },
         { commandId: 'search.open', group: 'find', order: 60 },
         { commandId: 'search.replace', group: 'find', order: 70 },
         { commandId: 'workbench.action.findInFiles', group: 'find', order: 80 },
@@ -403,9 +405,14 @@ export class CommandSurfaceRegistry {
       { commandId: 'editor.copy', group: 'clipboard', order: 40 },
       { commandId: 'editor.paste', group: 'clipboard', order: 50 },
       { commandId: 'editor.selectAll', group: 'select', order: 60 },
-      { commandId: 'search.open', group: 'search', order: 70 },
-      { commandId: 'search.replace', group: 'search', order: 80 },
-      { commandId: 'navigation.goToLine', group: 'nav', order: 90 },
+      { commandId: 'editor.action.goToDefinition', group: 'nav', order: 70 },
+      { commandId: 'editor.action.findReferences', group: 'nav', order: 80 },
+      { commandId: 'editor.action.rename', group: 'edit', order: 85 },
+      { commandId: 'editor.action.formatDocument', group: 'edit', order: 86 },
+      { commandId: 'editor.action.formatSelection', group: 'edit', order: 87 },
+      { commandId: 'search.open', group: 'search', order: 90 },
+      { commandId: 'search.replace', group: 'search', order: 95 },
+      { commandId: 'navigation.goToLine', group: 'nav', order: 100 },
     ];
     for (const it of editorContextMenuItems) {
       this.registerSurfaceItem('contextmenu:editor', it);
