@@ -10,6 +10,7 @@ import { SignatureHelpWidget } from './SignatureHelpWidget';
 import { CodeActionWidget } from './CodeActionWidget';
 import { CodeActionPreviewModal } from './CodeActionPreviewModal';
 import { ReferencesModal } from '../navigation/ReferencesModal';
+import { CallHierarchyModal } from '../navigation/CallHierarchyModal';
 import { RenameModal } from '../rename/RenameModal';
 import { useNavigation } from '../../state/NavigationContext';
 import { useContextMenu } from '../../state/ContextMenuContext';
@@ -23,6 +24,14 @@ import { globalCodeActionCoordinator } from '../../core/language-intelligence/Co
 import { globalLspNavigationCoordinator } from '../../core/lsp/navigation/LspNavigationCoordinator';
 import { globalLspRenameCoordinator } from '../../core/lsp/rename/LspRenameCoordinator';
 import { globalLspFormattingCoordinator } from '../../core/lsp/formatting/LspFormattingCoordinator';
+import { globalSemanticTokenCoordinator, EditorSemanticTokenDecoration } from '../../core/lsp/semantic-tokens';
+import { globalInlayHintCoordinator, EditorInlayHintDecoration } from '../../core/lsp/inlay-hints';
+import { globalCodeLensCoordinator, EditorCodeLensLine } from '../../core/lsp/code-lens';
+import { globalDocumentLinkCoordinator, EditorDocumentLinkDecoration } from '../../core/lsp/document-links';
+import { globalFoldingCoordinator, EditorFoldingRange } from '../../core/lsp/folding';
+import { globalSelectionRangeCoordinator } from '../../core/lsp/selection-range';
+import { globalCallHierarchyCoordinator } from '../../core/lsp/call-hierarchy/LspCallHierarchyCoordinator';
+import { QmCallHierarchyItem, CallHierarchyDirection } from '../../core/lsp/call-hierarchy/LspCallHierarchyTypes';
 import { globalFeedbackService } from '../../core/feedback/FeedbackService';
 import { ReferenceResult } from '../../core/lsp/navigation/LspNavigationTypes';
 import { Location, Range } from '../../core/navigation/LocationTypes';
@@ -91,6 +100,12 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
     range: Range;
     line: number;
     column: number;
+  } | null>(null);
+
+  // LSP Call Hierarchy State (Step 70)
+  const [callHierarchyData, setCallHierarchyData] = useState<{
+    items: QmCallHierarchyItem[];
+    initialDirection?: CallHierarchyDirection;
   } | null>(null);
 
   const docIdRef = useRef<string>(document.id);
@@ -544,6 +559,29 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
       await globalLspFormattingCoordinator.formatRange(docIdRef.current, selRange);
     };
 
+    const handleShowCallHierarchy = async (e?: Event) => {
+      if (!adapterRef.current) return;
+      const cursor = adapterRef.current.getCursorPosition();
+      const docUri = docFilePathRef.current || `untitled:${docIdRef.current}`;
+      const customEvent = e as CustomEvent | undefined;
+      const direction: CallHierarchyDirection = customEvent?.detail?.direction || 'incoming';
+
+      const items = await globalCallHierarchyCoordinator.prepareHierarchy(docUri, {
+        line: cursor.line - 1,
+        character: cursor.column - 1,
+      });
+
+      if (!items || items.length === 0) {
+        globalFeedbackService.showInfo('No call hierarchy available at current cursor location.');
+        return;
+      }
+
+      setCallHierarchyData({
+        items,
+        initialDirection: direction,
+      });
+    };
+
     window.addEventListener('qm:editor:gotodefinition', handleGoToDefinition);
     window.addEventListener('qm:editor:gotodeclaration', handleGoToDeclaration);
     window.addEventListener('qm:editor:gototypedefinition', handleGoToTypeDefinition);
@@ -551,6 +589,7 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
     window.addEventListener('qm:editor:rename', handleRename);
     window.addEventListener('qm:editor:formatdocument', handleFormatDocument);
     window.addEventListener('qm:editor:formatselection', handleFormatSelection);
+    window.addEventListener('qm:editor:showcallhierarchy', handleShowCallHierarchy);
     window.addEventListener('qm:navigation:multiple-targets', handleMultiTargets);
     window.addEventListener('qm:navigation:references', handleRefs);
 
@@ -562,6 +601,7 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
       window.removeEventListener('qm:editor:rename', handleRename);
       window.removeEventListener('qm:editor:formatdocument', handleFormatDocument);
       window.removeEventListener('qm:editor:formatselection', handleFormatSelection);
+      window.removeEventListener('qm:editor:showcallhierarchy', handleShowCallHierarchy);
       window.removeEventListener('qm:navigation:multiple-targets', handleMultiTargets);
       window.removeEventListener('qm:navigation:references', handleRefs);
     };
@@ -747,16 +787,49 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
       }
     };
 
+    const handleFoldAll = () => adapterRef.current?.foldAll();
+    const handleUnfoldAll = () => adapterRef.current?.unfoldAll();
+    const handleToggleFold = () => adapterRef.current?.toggleFold?.();
+
+    const handleExpandSelection = async () => {
+      if (!adapterRef.current || !document?.id) return;
+      const selections = adapterRef.current.getSelections?.() || [];
+      if (selections.length === 0) return;
+      const result = await globalSelectionRangeCoordinator.expandSelection(document.id, selections);
+      if (result.expanded && result.selections.length > 0) {
+        adapterRef.current.setSelections?.(result.selections);
+      }
+    };
+
+    const handleShrinkSelection = () => {
+      if (!adapterRef.current || !document?.id) return;
+      const selections = adapterRef.current.getSelections?.() || [];
+      const result = globalSelectionRangeCoordinator.shrinkSelection(document.id, selections);
+      if (result.expanded && result.selections.length > 0) {
+        adapterRef.current.setSelections?.(result.selections);
+      }
+    };
+
     window.addEventListener('qm:editor:undo', handleUndo);
     window.addEventListener('qm:editor:redo', handleRedo);
     window.addEventListener('qm:editor:selectall', handleSelectAll);
     window.addEventListener('qm:editor:copy', handleCopy);
+    window.addEventListener('qm:editor:foldall', handleFoldAll);
+    window.addEventListener('qm:editor:unfoldall', handleUnfoldAll);
+    window.addEventListener('qm:editor:togglefold', handleToggleFold);
+    window.addEventListener('qm:editor:expandselection', handleExpandSelection);
+    window.addEventListener('qm:editor:shrinkselection', handleShrinkSelection);
 
     return () => {
       window.removeEventListener('qm:editor:undo', handleUndo);
       window.removeEventListener('qm:editor:redo', handleRedo);
       window.removeEventListener('qm:editor:selectall', handleSelectAll);
       window.removeEventListener('qm:editor:copy', handleCopy);
+      window.removeEventListener('qm:editor:foldall', handleFoldAll);
+      window.removeEventListener('qm:editor:unfoldall', handleUnfoldAll);
+      window.removeEventListener('qm:editor:togglefold', handleToggleFold);
+      window.removeEventListener('qm:editor:expandselection', handleExpandSelection);
+      window.removeEventListener('qm:editor:shrinkselection', handleShrinkSelection);
     };
   }, [document.fileResource?.readOnly]);
 
@@ -811,6 +884,176 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
       unsubscribe();
     };
   }, [document.id, document.filePath, document.title, document.content]);
+
+  // Sync document semantic tokens with editor syntax highlighting (Step 64)
+  useEffect(() => {
+    if (!adapterRef.current) return;
+
+    const uri = document.filePath || document.title || document.id;
+
+    const syncTokens = (decorations?: EditorSemanticTokenDecoration[]) => {
+      if (!adapterRef.current) return;
+      const decos = decorations ?? globalSemanticTokenCoordinator.getDecorations(uri);
+      adapterRef.current.setSemanticTokens?.(decos);
+    };
+
+    // Initial sync
+    syncTokens();
+
+    // Request fresh semantic tokens for the document
+    globalSemanticTokenCoordinator.requestSemanticTokens(uri);
+
+    // Subscribe to semantic token update events
+    const unsubscribe = globalSemanticTokenCoordinator.subscribe((event) => {
+      if (event.type === 'tokensCleared') {
+        if (!event.uri || event.uri === uri) {
+          adapterRef.current?.clearSemanticTokens?.();
+        }
+      } else if (event.type === 'tokensUpdated' && event.uri === uri) {
+        syncTokens(event.decorations);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [document.id, document.filePath, document.title, document.contentRevision]);
+
+  // Sync document inlay hints with editor inline annotations (Step 65)
+  useEffect(() => {
+    if (!adapterRef.current) return;
+
+    const uri = document.filePath || document.title || document.id;
+
+    const syncHints = (decorations?: EditorInlayHintDecoration[]) => {
+      if (!adapterRef.current) return;
+      const decos = decorations ?? globalInlayHintCoordinator.getDecorations(uri);
+      adapterRef.current.setInlayHints?.(decos);
+    };
+
+    // Initial sync
+    syncHints();
+
+    // Request fresh inlay hints for the document
+    globalInlayHintCoordinator.requestInlayHints(uri);
+
+    // Subscribe to inlay hint update events
+    const unsubscribe = globalInlayHintCoordinator.subscribe((event) => {
+      if (event.type === 'hintsCleared') {
+        if (!event.uri || event.uri === uri) {
+          adapterRef.current?.clearInlayHints?.();
+        }
+      } else if (event.type === 'hintsUpdated' && event.uri === uri) {
+        syncHints(event.decorations);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [document.id, document.filePath, document.title, document.contentRevision]);
+
+  // Sync document code lenses with editor line block widgets (Step 66)
+  useEffect(() => {
+    if (!adapterRef.current) return;
+
+    const uri = document.filePath || document.title || document.id;
+
+    const syncLenses = (lines?: EditorCodeLensLine[]) => {
+      if (!adapterRef.current) return;
+      const lensLines = lines ?? globalCodeLensCoordinator.getLines(uri);
+      adapterRef.current.setCodeLenses?.(lensLines);
+    };
+
+    // Initial sync
+    syncLenses();
+
+    // Request fresh code lenses for the document
+    globalCodeLensCoordinator.requestCodeLenses(uri);
+
+    // Subscribe to code lens update events
+    const unsubscribe = globalCodeLensCoordinator.subscribe((event) => {
+      if (event.type === 'lensesCleared') {
+        if (!event.uri || event.uri === uri) {
+          adapterRef.current?.clearCodeLenses?.();
+        }
+      } else if (event.type === 'lensesUpdated' && event.uri === uri) {
+        syncLenses(event.lines);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [document.id, document.filePath, document.title, document.contentRevision]);
+
+  // Sync document links with editor inline decorations (Step 67)
+  useEffect(() => {
+    if (!adapterRef.current) return;
+
+    const uri = document.filePath || document.title || document.id;
+
+    const syncLinks = (decorations?: EditorDocumentLinkDecoration[]) => {
+      if (!adapterRef.current) return;
+      const decos = decorations ?? globalDocumentLinkCoordinator.getDecorations(uri);
+      adapterRef.current.setDocumentLinks?.(decos);
+    };
+
+    // Initial sync
+    syncLinks();
+
+    // Request fresh document links for the document
+    globalDocumentLinkCoordinator.requestDocumentLinks(uri);
+
+    // Subscribe to document link update events
+    const unsubscribe = globalDocumentLinkCoordinator.subscribe((event) => {
+      if (event.type === 'linksCleared') {
+        if (!event.uri || event.uri === uri) {
+          adapterRef.current?.clearDocumentLinks?.();
+        }
+      } else if (event.type === 'linksUpdated' && event.uri === uri) {
+        syncLinks(event.decorations);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [document.id, document.filePath, document.title, document.contentRevision]);
+
+  // Sync document folding ranges with editor (Step 68)
+  useEffect(() => {
+    if (!adapterRef.current) return;
+
+    const uri = document.filePath || document.title || document.id;
+
+    const syncFolding = (ranges?: EditorFoldingRange[]) => {
+      if (!adapterRef.current) return;
+      const editorRanges = ranges ?? globalFoldingCoordinator.getEditorRanges(uri);
+      adapterRef.current.setFoldingRanges?.(editorRanges);
+    };
+
+    // Initial sync
+    syncFolding();
+
+    // Request fresh folding ranges for the document
+    globalFoldingCoordinator.requestFoldingRanges(uri);
+
+    // Subscribe to folding range update events
+    const unsubscribe = globalFoldingCoordinator.subscribe((event) => {
+      if (event.type === 'rangesCleared') {
+        if (!event.uri || event.uri === uri) {
+          adapterRef.current?.clearFoldingRanges?.();
+        }
+      } else if (event.type === 'rangesUpdated' && event.uri === uri) {
+        syncFolding(event.editorRanges);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [document.id, document.filePath, document.title, document.contentRevision]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -901,6 +1144,15 @@ export const EditorSurface: React.FC<EditorSurfaceProps> = ({ document, onConten
           range={renameModalData.range}
           onRename={handleExecuteRename}
           onClose={() => setRenameModalData(null)}
+        />
+      )}
+
+      {/* LSP Call Hierarchy Modal (Step 70) */}
+      {callHierarchyData && (
+        <CallHierarchyModal
+          rootItems={callHierarchyData.items}
+          initialDirection={callHierarchyData.initialDirection}
+          onClose={() => setCallHierarchyData(null)}
         />
       )}
 

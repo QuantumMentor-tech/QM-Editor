@@ -47,7 +47,11 @@ export class SettingsRegistry {
   public isSensitive(key: string): boolean {
     const def = this.get(key);
     if (def?.sensitive === true) return true;
+    if (def?.sensitive === false) return false;
     const lower = key.toLowerCase();
+    if (lower.startsWith('lsp.semantictokens') || lower.startsWith('editor.token')) {
+      return false;
+    }
     return (
       lower.includes('secret') ||
       lower.includes('token') ||
@@ -952,6 +956,292 @@ export class SettingsRegistry {
       type: 'boolean',
       defaultValue: false,
       scope: 'user',
+    });
+
+    this.register({
+      key: 'lsp.semanticTokens.enabled',
+      title: 'Enable Semantic Highlighting',
+      description: 'Enables semantic token highlighting via Language Server Protocol servers.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.semanticTokens.enableDeltas',
+      title: 'Enable Semantic Token Deltas',
+      description: 'Enables incremental delta synchronization for semantic tokens when supported by the language server.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.inlayHints.enabled',
+      title: 'Enable Inlay Hints',
+      description: 'Enables display of inline annotations for parameter names and inferred types from language servers.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.inlayHints.typeHints',
+      title: 'Show Inferred Type Hints',
+      description: 'Displays inline inferred variable and return type hints.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.inlayHints.parameterNames',
+      title: 'Show Parameter Name Hints',
+      description: 'Displays inline parameter name hints for function and method invocations.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.inlayHints.requestDebounceMs',
+      title: 'Inlay Hint Request Debounce (ms)',
+      description: 'Debounce delay in milliseconds before requesting inlay hints after document modifications.',
+      category: 'Editor',
+      type: 'number',
+      defaultValue: 250,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.codeLens.enabled',
+      title: 'Enable Code Lens',
+      description: 'Enables display of actionable inline metadata and commands above relevant source code lines.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.codeLens.requestDebounceMs',
+      title: 'Code Lens Request Debounce (ms)',
+      description: 'Debounce delay in milliseconds before requesting code lenses after document modifications.',
+      category: 'Editor',
+      type: 'number',
+      defaultValue: 250,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.documentLinks.enabled',
+      title: 'Enable Document Links',
+      description: 'Enables clickable resource references, file links, and web URLs detected by the language server.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.documentLinks.externalLinks',
+      title: 'Enable External Web Links',
+      description: 'Controls whether external web links (http, https, mailto) detected in code can be opened.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.documentLinks.showUnderline',
+      title: 'Show Link Underlines',
+      description: 'Controls whether document links display a subtle underline decoration in the editor.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.documentLinks.requestDebounceMs',
+      title: 'Document Link Request Debounce (ms)',
+      description: 'Debounce delay in milliseconds before requesting document links after document modifications.',
+      category: 'Editor',
+      type: 'number',
+      defaultValue: 250,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'editor.documentLinks.enabled',
+      title: 'Enable Editor Document Links (Alias)',
+      description: 'Alias setting for editor document links enablement.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.folding.enabled',
+      title: 'Enable LSP Code Folding',
+      description: 'Enables structural code folding ranges provided by the language server.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'editor.folding.lsp.enabled',
+      title: 'Enable LSP Code Folding (Alias)',
+      description: 'Alias setting for LSP structural code folding enablement.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.folding.imports',
+      title: 'Fold Import Blocks',
+      description: 'Controls whether import statements are eligible for structural folding.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.folding.comments',
+      title: 'Fold Comment Blocks',
+      description: 'Controls whether block comments are eligible for structural folding.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.folding.requestDebounceMs',
+      title: 'Folding Request Debounce (ms)',
+      description: 'Debounce delay in milliseconds before requesting folding ranges after document modifications.',
+      category: 'Editor',
+      type: 'number',
+      defaultValue: 300,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.selectionRange.enabled',
+      title: 'Enable LSP Selection Ranges',
+      description: 'Enables structural selection range expansion provided by the language server.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'editor.selectionExpansion.enabled',
+      title: 'Enable Selection Expansion',
+      description: 'Enables context-aware structural selection expansion and shrinking.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'editor.selectionExpansion.useLanguageServer',
+      title: 'Use Language Server for Selection Expansion',
+      description: 'Controls whether selection expansion queries the language server when available.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'editor.selectionExpansion.preserveAnchor',
+      title: 'Preserve Selection Anchor Direction',
+      description: 'Preserves the active anchor and head direction when expanding structural selections.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.selectionRange.maxDepth',
+      title: 'Selection Range Maximum Depth',
+      description: 'Maximum depth limit for recursive LSP selection range hierarchies to protect against stack issues.',
+      category: 'Editor',
+      type: 'number',
+      defaultValue: 50,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'lsp.callHierarchy.enabled',
+      title: 'Enable LSP Call Hierarchy',
+      description: 'Enables cross-file caller and callee relationship discovery via the language server.',
+      category: 'Editor',
+      type: 'boolean',
+      defaultValue: true,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'editor.callHierarchy.maxDepth',
+      title: 'Call Hierarchy Maximum Depth',
+      description: 'Maximum expansion depth for call relationship trees to prevent performance degradation.',
+      category: 'Editor',
+      type: 'number',
+      defaultValue: 20,
+      scope: 'user',
+      sensitive: false,
+    });
+
+    this.register({
+      key: 'editor.callHierarchy.defaultDirection',
+      title: 'Call Hierarchy Default Direction',
+      description: 'Default call direction to display when opening Call Hierarchy (both, incoming, or outgoing).',
+      category: 'Editor',
+      type: 'string',
+      defaultValue: 'both',
+      scope: 'user',
+      sensitive: false,
     });
   }
 }

@@ -28,6 +28,7 @@ import {
   foldKeymap,
   foldAll,
   unfoldAll,
+  toggleFold,
   indentUnit,
   indentOnInput,
 } from '@codemirror/language';
@@ -37,6 +38,39 @@ import { DEFAULT_EDITOR_SETTINGS } from '../../services/PreferencesService';
 import { Diagnostic } from '../../core/diagnostics/DiagnosticTypes';
 import { rangeToCharacterOffsets } from '../../core/diagnostics/DiagnosticValidation';
 import { Range } from '../../core/navigation/LocationTypes';
+import {
+  setSemanticTokensEffect,
+  clearSemanticTokensEffect,
+  semanticTokensField,
+  semanticTokensTheme,
+  EditorSemanticTokenDecoration,
+} from '../../core/lsp/semantic-tokens';
+import {
+  setInlayHintsEffect,
+  clearInlayHintsEffect,
+  inlayHintsField,
+  inlayHintsTheme,
+  EditorInlayHintDecoration,
+} from '../../core/lsp/inlay-hints';
+import {
+  setCodeLensesEffect,
+  clearCodeLensesEffect,
+  codeLensField,
+  codeLensTheme,
+  EditorCodeLensLine,
+} from '../../core/lsp/code-lens';
+import {
+  setDocumentLinksEffect,
+  clearDocumentLinksEffect,
+  documentLinkExtensions,
+  EditorDocumentLinkDecoration,
+} from '../../core/lsp/document-links';
+import {
+  setFoldingRangesEffect,
+  clearFoldingRangesEffect,
+  foldingExtensions,
+  EditorFoldingRange,
+} from '../../core/lsp/folding';
 
 export interface MatchRange {
   from: number;
@@ -205,7 +239,20 @@ export interface EditorAdapterInterface {
   clearSearchHighlights(): void;
   setDiagnostics(diagnostics: Diagnostic[]): void;
   clearDiagnostics(): void;
+  setSemanticTokens?(decorations: EditorSemanticTokenDecoration[]): void;
+  clearSemanticTokens?(): void;
+  setInlayHints?(decorations: EditorInlayHintDecoration[]): void;
+  clearInlayHints?(): void;
+  setCodeLenses?(lines: EditorCodeLensLine[]): void;
+  clearCodeLenses?(): void;
+  setDocumentLinks?(decorations: EditorDocumentLinkDecoration[]): void;
+  clearDocumentLinks?(): void;
+  toggleFold?(): void;
+  setFoldingRanges?(ranges: EditorFoldingRange[]): void;
+  clearFoldingRanges?(): void;
   getSelectedText(): string;
+  getSelections?(): Array<{ anchor: number; head: number }>;
+  setSelections?(selections: Array<{ anchor: number; head: number }>): void;
   applyEdits?(changes: Array<{ from: number; to: number; insert: string }>): void;
   getViewState?(): {
     cursorPosition: { line: number; column: number };
@@ -345,6 +392,14 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
         foldingExt,
         searchHighlightField,
         diagnosticHighlightField,
+        semanticTokensField,
+        semanticTokensTheme,
+        inlayHintsField,
+        inlayHintsTheme,
+        codeLensField,
+        codeLensTheme,
+        documentLinkExtensions,
+        ...foldingExtensions,
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !this.isUpdatingProgrammatically) {
             const newContent = update.state.doc.toString();
@@ -590,6 +645,82 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
     });
   }
 
+  public setSemanticTokens(decorations: EditorSemanticTokenDecoration[]): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: setSemanticTokensEffect.of(decorations),
+    });
+  }
+
+  public clearSemanticTokens(): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: clearSemanticTokensEffect.of(),
+    });
+  }
+
+  public setInlayHints(decorations: EditorInlayHintDecoration[]): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: setInlayHintsEffect.of(decorations),
+    });
+  }
+
+  public clearInlayHints(): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: clearInlayHintsEffect.of(),
+    });
+  }
+
+  public setCodeLenses(lines: EditorCodeLensLine[]): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: setCodeLensesEffect.of(lines),
+    });
+  }
+
+  public clearCodeLenses(): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: clearCodeLensesEffect.of(),
+    });
+  }
+
+  public setDocumentLinks(decorations: EditorDocumentLinkDecoration[]): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: setDocumentLinksEffect.of(decorations),
+    });
+  }
+
+  public clearDocumentLinks(): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: clearDocumentLinksEffect.of(),
+    });
+  }
+
+  public toggleFold(): void {
+    if (this.view) {
+      toggleFold(this.view);
+    }
+  }
+
+  public setFoldingRanges(ranges: EditorFoldingRange[]): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: setFoldingRangesEffect.of(ranges),
+    });
+  }
+
+  public clearFoldingRanges(): void {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: clearFoldingRangesEffect.of(),
+    });
+  }
+
   public getSelectedText(): string {
     if (!this.view) return '';
     const mainSel = this.view.state.selection.main;
@@ -609,6 +740,29 @@ export class CodeMirrorEditorAdapter implements EditorAdapterInterface {
       endLine: toLine.number,
       endColumn: main.to - toLine.from + 1,
     };
+  }
+
+  public getSelections(): Array<{ anchor: number; head: number }> {
+    if (!this.view) return [];
+    return this.view.state.selection.ranges.map((r) => ({
+      anchor: r.anchor,
+      head: r.head,
+    }));
+  }
+
+  public setSelections(selections: Array<{ anchor: number; head: number }>): void {
+    if (!this.view || selections.length === 0) return;
+    const maxLen = this.view.state.doc.length;
+    const validRanges = selections.map((s) =>
+      EditorSelection.range(
+        Math.max(0, Math.min(s.anchor, maxLen)),
+        Math.max(0, Math.min(s.head, maxLen))
+      )
+    );
+    this.view.dispatch({
+      selection: EditorSelection.create(validRanges, 0),
+      scrollIntoView: true,
+    });
   }
 
   public applyEdits(changes: Array<{ from: number; to: number; insert: string }>): void {

@@ -16,6 +16,12 @@ import { globalSymbolEngine } from '../symbols/SymbolEngine';
 import { LanguageIntelligenceRegistry } from '../language-intelligence/LanguageIntelligenceRegistry';
 import { ServerSessionStatus } from './LspTypes';
 import { logger } from '../../utils/logger';
+import { LspSemanticTokenCoordinator, globalSemanticTokenCoordinator } from './semantic-tokens/LspSemanticTokenCoordinator';
+import { globalFoldingCoordinator } from './folding/LspFoldingCoordinator';
+import { globalSelectionRangeCoordinator } from './selection-range/LspSelectionRangeCoordinator';
+import { globalSelectionRangeProvider } from './selection-range/LspSelectionRangeProvider';
+import { globalCallHierarchyCoordinator } from './call-hierarchy/LspCallHierarchyCoordinator';
+import { globalCallHierarchyProvider } from './call-hierarchy/LspCallHierarchyProvider';
 
 export class LspCoordinator {
   private static instance: LspCoordinator | null = null;
@@ -25,6 +31,7 @@ export class LspCoordinator {
   public readonly diagnosticsBridge: LspDiagnosticsBridge;
   public readonly providerAdapter: LspProviderAdapter;
   public readonly workspaceSymbolProvider: LspWorkspaceSymbolProvider;
+  public readonly semanticTokenCoordinator: LspSemanticTokenCoordinator;
 
   private unregisterProvider?: () => void;
   private unregisterWorkspaceSymbolProvider?: () => void;
@@ -37,7 +44,8 @@ export class LspCoordinator {
     documentSync: LspDocumentSync = globalLspDocumentSync,
     diagnosticsBridge: LspDiagnosticsBridge = globalLspDiagnosticsBridge,
     providerAdapter: LspProviderAdapter = globalLspProviderAdapter,
-    workspaceSymbolProvider: LspWorkspaceSymbolProvider = new LspWorkspaceSymbolProvider()
+    workspaceSymbolProvider: LspWorkspaceSymbolProvider = new LspWorkspaceSymbolProvider(),
+    semanticTokenCoordinator: LspSemanticTokenCoordinator = globalSemanticTokenCoordinator
   ) {
     this.serverManager = serverManager;
     this.serverRegistry = serverRegistry;
@@ -45,6 +53,7 @@ export class LspCoordinator {
     this.diagnosticsBridge = diagnosticsBridge;
     this.providerAdapter = providerAdapter;
     this.workspaceSymbolProvider = workspaceSymbolProvider;
+    this.semanticTokenCoordinator = semanticTokenCoordinator;
   }
 
   public static getInstance(): LspCoordinator {
@@ -90,6 +99,11 @@ export class LspCoordinator {
    * Restarts an LSP server session by ID.
    */
   public async restartSession(sessionId: string): Promise<void> {
+    this.semanticTokenCoordinator.clearTokens();
+    globalFoldingCoordinator.clearFoldingRanges();
+    globalSelectionRangeProvider.clearCache();
+    globalSelectionRangeCoordinator.clearHistory();
+    globalCallHierarchyCoordinator.clearSession();
     await this.serverManager.restartSession(sessionId);
   }
 
@@ -103,6 +117,12 @@ export class LspCoordinator {
     this.unregisterProvider?.();
     this.unregisterWorkspaceSymbolProvider?.();
     this.workspaceSymbolProvider.dispose();
+    this.semanticTokenCoordinator.dispose();
+    globalFoldingCoordinator.dispose();
+    globalSelectionRangeCoordinator.dispose();
+    globalSelectionRangeProvider.dispose();
+    globalCallHierarchyCoordinator.dispose();
+    globalCallHierarchyProvider.dispose();
     this.documentSync.dispose();
     this.diagnosticsBridge.dispose();
     this.providerAdapter.dispose();

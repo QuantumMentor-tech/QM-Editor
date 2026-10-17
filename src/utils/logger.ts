@@ -53,3 +53,5 @@ class LoggerService {
 }
 
 export const logger = new LoggerService();
+export const Logger = logger;
+export { LoggerService };

@@ -377,6 +377,49 @@ export const defaultCommands: Command[] = [
     },
   },
   {
+    id: 'editor.showCallHierarchy',
+    label: 'Show Call Hierarchy',
+    category: 'editor',
+    shortcut: 'Shift+Alt+H',
+    description: 'Show callers and callees for the callable symbol under cursor',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(
+        new CustomEvent('qm:editor:showcallhierarchy', {
+          detail: { direction: 'incoming' },
+        })
+      );
+    },
+  },
+  {
+    id: 'calls.showIncoming',
+    label: 'Show Incoming Calls',
+    category: 'editor',
+    description: 'Show callers of the callable symbol under cursor',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(
+        new CustomEvent('qm:editor:showcallhierarchy', {
+          detail: { direction: 'incoming' },
+        })
+      );
+    },
+  },
+  {
+    id: 'calls.showOutgoing',
+    label: 'Show Outgoing Calls',
+    category: 'editor',
+    description: 'Show callees called by the symbol under cursor',
+    canExecute: (ctx) => Boolean(ctx.activeDoc),
+    execute: () => {
+      window.dispatchEvent(
+        new CustomEvent('qm:editor:showcallhierarchy', {
+          detail: { direction: 'outgoing' },
+        })
+      );
+    },
+  },
+  {
     id: 'editor.zoomIn',
     label: 'Zoom In (Increase Font Size)',
     category: 'editor',
@@ -1216,6 +1259,54 @@ export const defaultCommands: Command[] = [
       }
       const summary = statuses.map((s) => `${s.displayName}: ${s.health.toUpperCase()} (${s.trackedDocumentCount} doc(s))`).join(' | ');
       globalFeedbackService.showInfo(`Language Servers: ${summary}`);
+    },
+  },
+  {
+    id: 'editor.action.smartSelect.expand',
+    label: 'Selection: Expand Selection',
+    category: 'editor',
+    description: 'Expands the active selection to increasingly meaningful structural boundaries',
+    shortcut: 'Shift+Alt+Right',
+    canExecute: () => true,
+    execute: () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('qm:editor:expandselection'));
+      }
+    },
+  },
+  {
+    id: 'editor.action.smartSelect.shrink',
+    label: 'Selection: Shrink Selection',
+    category: 'editor',
+    description: 'Shrinks the active selection to the previously enclosing structural boundary',
+    shortcut: 'Shift+Alt+Left',
+    canExecute: () => true,
+    execute: () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('qm:editor:shrinkselection'));
+      }
+    },
+  },
+  {
+    id: 'selection.expand',
+    label: 'Expand Selection',
+    category: 'editor',
+    canExecute: () => true,
+    execute: () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('qm:editor:expandselection'));
+      }
+    },
+  },
+  {
+    id: 'selection.shrink',
+    label: 'Shrink Selection',
+    category: 'editor',
+    canExecute: () => true,
+    execute: () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('qm:editor:shrinkselection'));
+      }
     },
   },
 ];

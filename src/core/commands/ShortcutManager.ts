@@ -71,6 +71,12 @@ export class ShortcutManager {
     const requiresShift = parts.includes('shift');
     const requiresAlt = parts.includes('alt');
     const targetKey = parts[parts.length - 1];
+    const normalizedTarget =
+      targetKey === 'right' ? 'arrowright' :
+      targetKey === 'left' ? 'arrowleft' :
+      targetKey === 'up' ? 'arrowup' :
+      targetKey === 'down' ? 'arrowdown' :
+      targetKey;
 
     if (requiresMod && !isMod) return false;
     if (!requiresMod && isMod) return false;
@@ -79,7 +85,7 @@ export class ShortcutManager {
     if (requiresAlt && !e.altKey) return false;
     if (!requiresAlt && e.altKey) return false;
 
-    return key === targetKey;
+    return key === normalizedTarget || key === targetKey;
   }
 
   public static formatShortcut(shortcutPattern: string): string {

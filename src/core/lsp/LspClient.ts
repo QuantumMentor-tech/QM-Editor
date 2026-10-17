@@ -138,9 +138,88 @@ export class LspClient {
         rangeFormatting: {
           dynamicRegistration: false,
         },
+        semanticTokens: {
+          dynamicRegistration: false,
+          requests: {
+            range: true,
+            full: { delta: true },
+          },
+          tokenTypes: [
+            'namespace',
+            'type',
+            'class',
+            'enum',
+            'interface',
+            'struct',
+            'typeParameter',
+            'parameter',
+            'variable',
+            'property',
+            'enumMember',
+            'event',
+            'function',
+            'method',
+            'macro',
+            'keyword',
+            'modifier',
+            'comment',
+            'string',
+            'number',
+            'regexp',
+            'operator',
+            'decorator',
+            'label',
+          ],
+          tokenModifiers: [
+            'declaration',
+            'definition',
+            'readonly',
+            'static',
+            'deprecated',
+            'abstract',
+            'async',
+            'modification',
+            'documentation',
+            'defaultLibrary',
+          ],
+          formats: ['relative'],
+          overlappingTokenSupport: false,
+          multilineTokenSupport: false,
+          augmentsSyntaxTokens: true,
+        },
         publishDiagnostics: {
           relatedInformation: true,
           versionSupport: true,
+        },
+        inlayHint: {
+          dynamicRegistration: false,
+          resolveSupport: {
+            properties: ['tooltip', 'textEdits'],
+          },
+        },
+        codeLens: {
+          dynamicRegistration: false,
+        },
+        documentLink: {
+          dynamicRegistration: false,
+          tooltipSupport: true,
+        },
+        foldingRange: {
+          dynamicRegistration: false,
+          rangeLimit: 5000,
+          lineFoldingOnly: false,
+          foldingRangeKind: {
+            valueSet: ['comment', 'imports', 'region'],
+          },
+          foldingRange: {
+            collapsedText: true,
+          },
+        },
+        selectionRange: {
+          dynamicRegistration: false,
+        },
+        callHierarchy: {
+          dynamicRegistration: false,
         },
       },
       window: {

@@ -144,6 +144,50 @@ export interface ClientCapabilities {
     rangeFormatting?: {
       dynamicRegistration?: boolean;
     };
+    semanticTokens?: {
+      dynamicRegistration?: boolean;
+      requests: {
+        range?: boolean | { [key: string]: unknown };
+        full?: boolean | { delta?: boolean };
+      };
+      tokenTypes: string[];
+      tokenModifiers: string[];
+      formats: ('relative')[];
+      overlappingTokenSupport?: boolean;
+      multilineTokenSupport?: boolean;
+      serverCancelSupport?: boolean;
+      augmentsSyntaxTokens?: boolean;
+    };
+    inlayHint?: {
+      dynamicRegistration?: boolean;
+      resolveSupport?: {
+        properties: string[];
+      };
+    };
+    codeLens?: {
+      dynamicRegistration?: boolean;
+    };
+    documentLink?: {
+      dynamicRegistration?: boolean;
+      tooltipSupport?: boolean;
+    };
+    foldingRange?: {
+      dynamicRegistration?: boolean;
+      rangeLimit?: number;
+      lineFoldingOnly?: boolean;
+      foldingRangeKind?: {
+        valueSet?: string[];
+      };
+      foldingRange?: {
+        collapsedText?: boolean;
+      };
+    };
+    selectionRange?: {
+      dynamicRegistration?: boolean;
+    };
+    callHierarchy?: {
+      dynamicRegistration?: boolean;
+    };
     publishDiagnostics?: {
       relatedInformation?: boolean;
       tagSupport?: {
@@ -195,6 +239,33 @@ export interface ServerCapabilities {
   documentRangeFormattingProvider?: boolean | { workDoneProgress?: boolean };
   renameProvider?: boolean | { prepareProvider?: boolean };
   workspaceSymbolProvider?: boolean | { workDoneProgress?: boolean };
+  semanticTokensProvider?: {
+    legend: LspSemanticTokensLegend;
+    range?: boolean | { [key: string]: unknown };
+    full?: boolean | { delta?: boolean };
+    workDoneProgress?: boolean;
+  };
+  inlayHintProvider?: boolean | {
+    resolveProvider?: boolean;
+    workDoneProgress?: boolean;
+  };
+  codeLensProvider?: {
+    resolveProvider?: boolean;
+    workDoneProgress?: boolean;
+  };
+  documentLinkProvider?: {
+    resolveProvider?: boolean;
+    workDoneProgress?: boolean;
+  };
+  foldingRangeProvider?: boolean | {
+    workDoneProgress?: boolean;
+  };
+  selectionRangeProvider?: boolean | {
+    workDoneProgress?: boolean;
+  };
+  callHierarchyProvider?: boolean | {
+    workDoneProgress?: boolean;
+  };
   executeCommandProvider?: { commands: string[] };
   workspace?: {
     workspaceFolders?: {
@@ -780,3 +851,231 @@ export interface DocumentRangeFormattingParams {
 }
 
 export type LspFormattingResponse = LspTextEdit[] | null;
+
+// =============================================================================
+// 12. Semantic Tokens Protocols (LSP 3.17)
+// =============================================================================
+
+export interface LspSemanticTokensLegend {
+  tokenTypes: string[];
+  tokenModifiers: string[];
+}
+
+export interface LspSemanticTokensParams {
+  textDocument: TextDocumentIdentifier;
+  workDoneToken?: ProgressToken;
+  partialResultToken?: ProgressToken;
+}
+
+export interface LspSemanticTokensRangeParams {
+  textDocument: TextDocumentIdentifier;
+  range: LspRange;
+  workDoneToken?: ProgressToken;
+  partialResultToken?: ProgressToken;
+}
+
+export interface LspSemanticTokensDeltaParams {
+  textDocument: TextDocumentIdentifier;
+  previousResultId: string;
+  workDoneToken?: ProgressToken;
+  partialResultToken?: ProgressToken;
+}
+
+export interface LspSemanticTokens {
+  resultId?: string;
+  data: number[];
+}
+
+export interface LspSemanticTokensEdit {
+  start: number;
+  deleteCount: number;
+  data?: number[];
+}
+
+export interface LspSemanticTokensDelta {
+  resultId?: string;
+  edits: LspSemanticTokensEdit[];
+}
+
+export type LspSemanticTokensResponse = LspSemanticTokens | null;
+export type LspSemanticTokensDeltaResponse = LspSemanticTokens | LspSemanticTokensDelta | null;
+
+// =============================================================================
+// 13. Inlay Hint Protocols (LSP 3.17)
+// =============================================================================
+
+export const LspInlayHintKind = {
+  Type: 1,
+  Parameter: 2,
+} as const;
+
+export type LspInlayHintKind = typeof LspInlayHintKind[keyof typeof LspInlayHintKind];
+
+export interface LspCommand {
+  title: string;
+  command: string;
+  arguments?: unknown[];
+}
+
+export interface LspInlayHintLabelPart {
+  value: string;
+  tooltip?: string | LspMarkupContent;
+  location?: LspLocation;
+  command?: LspCommand;
+}
+
+export interface LspInlayHint {
+  position: LspPosition;
+  label: string | LspInlayHintLabelPart[];
+  kind?: LspInlayHintKind;
+  textEdits?: LspTextEdit[];
+  tooltip?: string | LspMarkupContent;
+  paddingLeft?: boolean;
+  paddingRight?: boolean;
+  data?: unknown;
+}
+
+export interface LspInlayHintParams {
+  textDocument: TextDocumentIdentifier;
+  range: LspRange;
+  workDoneToken?: ProgressToken;
+}
+
+export type LspInlayHintResponse = LspInlayHint[] | null;
+
+// =============================================================================
+// 14. Code Lens Protocols (LSP 3.17)
+// =============================================================================
+
+export interface LspCodeLensParams {
+  textDocument: TextDocumentIdentifier;
+  workDoneToken?: ProgressToken;
+  partialResultToken?: ProgressToken;
+}
+
+export interface LspCodeLens {
+  range: LspRange;
+  command?: LspCommand;
+  data?: unknown;
+}
+
+export type LspCodeLensResponse = LspCodeLens[] | null;
+
+// =============================================================================
+// 15. Document Link Protocols (LSP 3.17)
+// =============================================================================
+
+export interface LspDocumentLinkParams {
+  textDocument: TextDocumentIdentifier;
+  workDoneToken?: ProgressToken;
+  partialResultToken?: ProgressToken;
+}
+
+export interface LspDocumentLink {
+  range: LspRange;
+  target?: string;
+  tooltip?: string;
+  data?: unknown;
+}
+
+export type LspDocumentLinkResponse = LspDocumentLink[] | null;
+
+// =============================================================================
+// 16. Folding Range Protocols (LSP 3.17)
+// =============================================================================
+
+export type LspFoldingRangeKind = 'comment' | 'imports' | 'region' | string;
+
+export interface LspFoldingRangeParams {
+  textDocument: TextDocumentIdentifier;
+  workDoneToken?: ProgressToken;
+  partialResultToken?: ProgressToken;
+}
+
+export interface LspFoldingRange {
+  /** The zero-based start line of the range to fold. */
+  startLine: number;
+  /** The zero-based character offset before which the folded range starts. */
+  startCharacter?: number;
+  /** The zero-based end line of the range to fold. */
+  endLine: number;
+  /** The zero-based character offset before which the folded range ends. */
+  endCharacter?: number;
+  /** Describes the kind of the folding range such as `comment` or `imports`. */
+  kind?: LspFoldingRangeKind;
+  /** The text that the client should show when the specified range is collapsed. */
+  collapsedText?: string;
+}
+
+export type LspFoldingRangeResponse = LspFoldingRange[] | null;
+
+// =============================================================================
+// 17. Selection Range Protocols (LSP 3.17)
+// =============================================================================
+
+export interface LspSelectionRangeParams {
+  textDocument: TextDocumentIdentifier;
+  positions: LspPosition[];
+  workDoneToken?: ProgressToken;
+  partialResultToken?: ProgressToken;
+}
+
+export interface LspSelectionRange {
+  range: LspRange;
+  parent?: LspSelectionRange;
+}
+
+export type LspSelectionRangeResponse = LspSelectionRange[] | null;
+
+// =============================================================================
+// 18. Call Hierarchy Protocols (LSP 3.17)
+// =============================================================================
+
+export interface LspCallHierarchyPrepareParams {
+  textDocument: TextDocumentIdentifier;
+  position: LspPosition;
+  workDoneToken?: ProgressToken;
+}
+
+export interface LspCallHierarchyItem {
+  name: string;
+  kind: LspSymbolKind;
+  tags?: LspSymbolTag[];
+  detail?: string;
+  uri: string;
+  range: LspRange;
+  selectionRange: LspRange;
+  data?: unknown;
+}
+
+export type LspCallHierarchyPrepareResponse = LspCallHierarchyItem[] | null;
+
+export interface LspCallHierarchyIncomingCallsParams {
+  item: LspCallHierarchyItem;
+  workDoneToken?: ProgressToken;
+  partialResultToken?: ProgressToken;
+}
+
+export interface LspCallHierarchyIncomingCall {
+  from: LspCallHierarchyItem;
+  fromRanges: LspRange[];
+}
+
+export type LspCallHierarchyIncomingCallsResponse = LspCallHierarchyIncomingCall[] | null;
+
+export interface LspCallHierarchyOutgoingCallsParams {
+  item: LspCallHierarchyItem;
+  workDoneToken?: ProgressToken;
+  partialResultToken?: ProgressToken;
+}
+
+export interface LspCallHierarchyOutgoingCall {
+  to: LspCallHierarchyItem;
+  fromRanges: LspRange[];
+}
+
+export type LspCallHierarchyOutgoingCallsResponse = LspCallHierarchyOutgoingCall[] | null;
+
+
+
+
